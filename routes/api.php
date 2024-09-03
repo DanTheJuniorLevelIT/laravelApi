@@ -11,6 +11,7 @@ Route::get('/', function () {
 
 // Route::apiResource('execute', ExecuteController::class);
 Route::get('/subjects', [ExecuteController::class, 'index']);
+Route::get('/subjects/showAll', [ExecuteController::class, 'showAll']);
 Route::get('/subjects/{id}', [ExecuteController::class, 'show']);
 
 // Route::get('/subjects', 'ExecuteController@index');
