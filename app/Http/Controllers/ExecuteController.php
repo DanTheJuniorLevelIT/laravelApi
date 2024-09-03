@@ -62,10 +62,11 @@ class ExecuteController extends Controller
     {
         //
         $validatedData = $request->validate([
+            'Lesson_ID' => 'required|integer',
             'Title' => 'required|string|max:255',
-            'Title' => 'required|string|max:255',
-            'Title' => 'required|string|max:255',
-            'Due_date' => 'required|date',
+            'Instruction' => 'required|string|max:255',
+            'Description' => 'required|string|max:255',
+            'Due_date' => 'date',
         ]);
 
         $assess = Assessment::create($validatedData);
@@ -135,5 +136,20 @@ class ExecuteController extends Controller
             ->select('subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule')
             ->get();
         return $subject;
+    }
+
+    public function showAssessment()
+    {
+        //
+        $assess = DB::table('assessments')
+        ->select(
+            'assessments.Title',
+            'assessments.Instruction',
+            'assessments.Description',
+            DB::raw('DATE_FORMAT(assessments.Due_date, "%M %d, %Y") as formatted_due_date')
+        )
+        ->get();
+
+        return $assess;
     }
 }

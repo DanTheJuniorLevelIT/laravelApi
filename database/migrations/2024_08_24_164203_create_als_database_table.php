@@ -27,7 +27,7 @@ return new class extends Migration
             $table->string('Contact_Numbers')->nullable();
             $table->string('Email')->unique();
             $table->string('Password');
-            // $table->timestamps();
+            $table->timestamps();
         });
 
         Schema::create('enrollees', function (Blueprint $table) {
@@ -37,7 +37,7 @@ return new class extends Migration
             $table->string('Status');
             $table->string('School_Year');
             $table->date('Enrolldate');
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Key
             // $table->foreign('LRN')->references('LRN')->on('learners')->onDelete('cascade');
@@ -55,7 +55,7 @@ return new class extends Migration
             $table->string('Role');
             $table->string('Email')->unique();
             $table->string('Password');
-            // $table->timestamps();
+            $table->timestamps();
         });
 
         Schema::create('messages', function (Blueprint $table) {
@@ -63,7 +63,7 @@ return new class extends Migration
             $table->unsignedBigInteger('senderID');
             $table->unsignedBigInteger('receiverID');
             $table->text('Messages');
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Keys
             // $table->foreign('senderID')->references('adminID')->on('admins')->onDelete('cascade');
@@ -89,7 +89,7 @@ return new class extends Migration
             $table->string('Location');
             $table->string('Room_No');
             $table->integer('Capacity');
-            // $table->timestamps();
+            $table->timestamps();
         });
 
         Schema::create('subjects', function (Blueprint $table) {
@@ -105,7 +105,7 @@ return new class extends Migration
             $table->id('rosterID');
             $table->unsignedBigInteger('classID');
             $table->unsignedBigInteger('LRN');
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Keys
             // $table->foreign('classID')->references('classID')->on('classes')->onDelete('cascade');
@@ -117,7 +117,7 @@ return new class extends Migration
             $table->unsignedBigInteger('subjectID');
             $table->string('Title');
             $table->text('Instruction');
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Key
             // $table->foreign('subjectID')->references('subjectID')->on('subjects')->onDelete('cascade');
@@ -128,7 +128,7 @@ return new class extends Migration
             $table->unsignedBigInteger('classID');
             $table->string('Title');
             $table->text('Description');
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Key
             // $table->foreign('classID')->references('classID')->on('classes')->onDelete('cascade');
@@ -138,7 +138,7 @@ return new class extends Migration
             $table->id('discussionID');
             $table->unsignedBigInteger('Lesson_ID');
             $table->text('Discussion_Topic');
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Key
             // $table->foreign('Lesson_ID')->references('Lessons_ID')->on('lessons')->onDelete('cascade');
@@ -149,7 +149,7 @@ return new class extends Migration
             $table->unsignedBigInteger('discussionID');
             $table->unsignedBigInteger('LRN');
             $table->text('Reply');
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Keys
             // $table->foreign('discussionID')->references('discussionID')->on('discussions')->onDelete('cascade');
@@ -163,7 +163,7 @@ return new class extends Migration
             $table->text('Lesson');
             $table->text('Handout')->nullable();
             $table->string('File')->nullable();
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Key
             // $table->foreign('Module_ID')->references('Module_ID')->on('modules')->onDelete('cascade');
@@ -176,7 +176,7 @@ return new class extends Migration
             $table->text('Instruction');
             $table->text('Description');
             $table->date('Due_date');
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Key
             // $table->foreign('Lesson_ID')->references('Lessons_ID')->on('lessons')->onDelete('cascade');
@@ -189,7 +189,7 @@ return new class extends Migration
             $table->string('Type');
             $table->string('Key_Answer');
             $table->integer('Points');
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Key
             // $table->foreign('Assessment_ID')->references('assessmentID')->on('assessments')->onDelete('cascade');
@@ -199,7 +199,7 @@ return new class extends Migration
             $table->id('Option_ID');
             $table->unsignedBigInteger('Question_ID');
             $table->string('Option_text');
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Key
             // $table->foreign('Question_ID')->references('Question_ID')->on('questions')->onDelete('cascade');
@@ -211,7 +211,7 @@ return new class extends Migration
             $table->string('LRN');
             $table->string('Answer');
             $table->integer('Score');
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Keys
             // $table->foreign('Question_ID')->references('Question_ID')->on('questions')->onDelete('cascade');
@@ -226,7 +226,7 @@ return new class extends Migration
             $table->integer('Score')->nullable();
             $table->date('Date_submission');
             $table->string('File')->nullable();
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Keys
             // $table->foreign('assessmentID')->references('assessmentID')->on('assessments')->onDelete('cascade');
@@ -239,7 +239,7 @@ return new class extends Migration
             $table->unsignedBigInteger('Uploader_ID');
             $table->string('Type');
             $table->string('Filename');
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Keys
             // $table->foreign('Lesson_ID')->references('Lessons_ID')->on('lessons')->onDelete('cascade');
