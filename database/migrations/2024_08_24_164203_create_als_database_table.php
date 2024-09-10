@@ -12,31 +12,33 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('learners', function (Blueprint $table) {
-            $table->id('StudentID');
-            $table->string('LRN')->unique();;
-            $table->string('Firstname');
-            $table->string('Middlename')->nullable();
-            $table->string('Lastname');
-            $table->string('Extension_name')->nullable();
-            $table->date('Birthdate');
-            $table->string('Gender');
-            $table->string('PlaceOfBirth');
-            $table->string('Religion')->nullable();
-            $table->string('Civil_status');
-            $table->string('Education')->nullable();
-            $table->string('Contact_Numbers')->nullable();
-            $table->string('Email')->unique();
-            $table->string('Password');
+            $table->id('studentid');
+            $table->string('lrn')->unique()->nullable();
+            $table->string('firstname');
+            $table->string('middlename')->nullable();
+            $table->string('lastname');
+            $table->string('extension_name')->nullable();
+            $table->date('birthdate');
+            $table->string('gender');
+            $table->string('placeofbirth');
+            $table->string('religion')->nullable();
+            $table->string('civil_status');
+            $table->string('education')->nullable();
+            $table->string('contact_numbers')->nullable();
+            $table->string('email')->unique();
+            $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+            $table->rememberToken();
             $table->timestamps();
         });
 
         Schema::create('enrollees', function (Blueprint $table) {
             $table->id('enrolID');
-            $table->string('LRN');
-            $table->string('Program');
-            $table->string('Status');
-            $table->string('School_Year');
-            $table->date('Enrolldate');
+            $table->string('lrn');
+            $table->string('program');
+            $table->string('status');
+            $table->string('school_year');
+            $table->date('enrolldate');
             $table->timestamps();
 
             // Foreign Key
@@ -45,24 +47,26 @@ return new class extends Migration
 
         Schema::create('admins', function (Blueprint $table) {
             $table->id('adminID');
-            $table->string('Firstname');
-            $table->string('Middlename')->nullable();
-            $table->string('Lastname');
-            $table->string('Gender');
-            $table->date('Birthdate');
-            $table->string('Address');
-            $table->string('Mobile_number');
-            $table->string('Role');
-            $table->string('Email')->unique();
-            $table->string('Password');
+            $table->string('firstname');
+            $table->string('middlename')->nullable();
+            $table->string('lastname');
+            $table->string('gender');
+            $table->date('birthdate');
+            $table->string('address');
+            $table->string('mobile_number');
+            $table->string('role');
+            $table->string('email')->unique();
+            $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+            $table->rememberToken();
             $table->timestamps();
         });
 
         Schema::create('messages', function (Blueprint $table) {
-            $table->id('messageID');
-            $table->unsignedBigInteger('senderID');
-            $table->unsignedBigInteger('receiverID');
-            $table->text('Messages');
+            $table->id('messageid');
+            $table->unsignedBigInteger('senderid');
+            $table->unsignedBigInteger('receiverid');
+            $table->text('messages');
             $table->timestamps();
 
             // Foreign Keys
@@ -71,11 +75,11 @@ return new class extends Migration
         });
 
         Schema::create('classes', function (Blueprint $table) {
-            $table->id('classID');
-            $table->unsignedBigInteger('adminID');
-            $table->unsignedBigInteger('subjectID');
-            $table->unsignedBigInteger('RoomID');
-            $table->string('Schedule');
+            $table->id('classid');
+            $table->unsignedBigInteger('adminid');
+            $table->unsignedBigInteger('subjectid');
+            $table->unsignedBigInteger('roomid');
+            $table->string('schedule');
             // $table->timestamps();
 
             // Foreign Keys
@@ -85,26 +89,26 @@ return new class extends Migration
         });
 
         Schema::create('rooms', function (Blueprint $table) {
-            $table->id('RoomID');
-            $table->string('Location');
-            $table->string('Room_No');
-            $table->integer('Capacity');
+            $table->id('roomid');
+            $table->string('location');
+            $table->string('school');
+            $table->integer('capacity');
             $table->timestamps();
         });
 
         Schema::create('subjects', function (Blueprint $table) {
-            $table->id('subjectID');
+            $table->id('subjectid');
             $table->string('image');
             $table->string('subject_name');
-            $table->text('Description')->nullable();
-            $table->string('Program');
+            $table->text('description')->nullable();
+            $table->string('program');
             // $table->timestamps();
         });
 
         Schema::create('rosters', function (Blueprint $table) {
-            $table->id('rosterID');
-            $table->unsignedBigInteger('classID');
-            $table->unsignedBigInteger('LRN');
+            $table->id('rosterid');
+            $table->unsignedBigInteger('classid');
+            $table->unsignedBigInteger('lrn');
             $table->timestamps();
 
             // Foreign Keys
@@ -113,10 +117,10 @@ return new class extends Migration
         });
 
         Schema::create('announcements', function (Blueprint $table) {
-            $table->id('announceID');
-            $table->unsignedBigInteger('subjectID');
-            $table->string('Title');
-            $table->text('Instruction');
+            $table->id('announceid');
+            $table->unsignedBigInteger('subjectid');
+            $table->string('title');
+            $table->text('instruction');
             $table->timestamps();
 
             // Foreign Key
@@ -124,10 +128,10 @@ return new class extends Migration
         });
 
         Schema::create('modules', function (Blueprint $table) {
-            $table->id('Module_ID');
-            $table->unsignedBigInteger('classID');
-            $table->string('Title');
-            $table->text('Description');
+            $table->id('modules_id');
+            $table->unsignedBigInteger('classid');
+            $table->string('title');
+            $table->text('description');
             $table->timestamps();
 
             // Foreign Key
@@ -135,8 +139,8 @@ return new class extends Migration
         });
 
         Schema::create('discussions', function (Blueprint $table) {
-            $table->id('discussionID');
-            $table->unsignedBigInteger('Lesson_ID');
+            $table->id('discussionid');
+            $table->unsignedBigInteger('lesson_id');
             $table->text('Discussion_Topic');
             $table->timestamps();
 
@@ -145,10 +149,10 @@ return new class extends Migration
         });
 
         Schema::create('discussion_replies', function (Blueprint $table) {
-            $table->id('replyID');
-            $table->unsignedBigInteger('discussionID');
-            $table->unsignedBigInteger('LRN');
-            $table->text('Reply');
+            $table->id('replyid');
+            $table->unsignedBigInteger('discussionid');
+            $table->unsignedBigInteger('lrn');
+            $table->text('reply');
             $table->timestamps();
 
             // Foreign Keys
@@ -157,12 +161,12 @@ return new class extends Migration
         });
 
         Schema::create('lessons', function (Blueprint $table) {
-            $table->id('Lessons_ID');
-            $table->unsignedBigInteger('Module_ID');
-            $table->string('Topic_title');
-            $table->text('Lesson');
-            $table->text('Handout')->nullable();
-            $table->string('File')->nullable();
+            $table->id('lesson_id');
+            $table->unsignedBigInteger('module_id');
+            $table->string('topic_title');
+            $table->text('lesson');
+            $table->text('handout')->nullable();
+            $table->string('file')->nullable();
             $table->timestamps();
 
             // Foreign Key
@@ -170,12 +174,12 @@ return new class extends Migration
         });
 
         Schema::create('assessments', function (Blueprint $table) {
-            $table->id('assessmentID');
-            $table->unsignedBigInteger('Lesson_ID');
-            $table->string('Title');
-            $table->text('Instruction');
-            $table->text('Description');
-            $table->date('Due_date');
+            $table->id('assessmentid');
+            $table->unsignedBigInteger('lesson-id');
+            $table->string('title');
+            $table->text('instruction');
+            $table->text('description');
+            $table->date('due_date');
             $table->timestamps();
 
             // Foreign Key
@@ -183,12 +187,12 @@ return new class extends Migration
         });
 
         Schema::create('questions', function (Blueprint $table) {
-            $table->id('Question_ID');
-            $table->unsignedBigInteger('Assessment_ID');
-            $table->string('Question');
-            $table->string('Type');
-            $table->string('Key_Answer');
-            $table->integer('Points');
+            $table->id('question_id');
+            $table->unsignedBigInteger('assessment_id');
+            $table->string('question');
+            $table->string('type');
+            $table->string('key_answer');
+            $table->integer('points');
             $table->timestamps();
 
             // Foreign Key
@@ -196,9 +200,9 @@ return new class extends Migration
         });
 
         Schema::create('options', function (Blueprint $table) {
-            $table->id('Option_ID');
-            $table->unsignedBigInteger('Question_ID');
-            $table->string('Option_text');
+            $table->id('option_id');
+            $table->unsignedBigInteger('question_id');
+            $table->string('option_text');
             $table->timestamps();
 
             // Foreign Key
@@ -206,11 +210,11 @@ return new class extends Migration
         });
 
         Schema::create('answers', function (Blueprint $table) {
-            $table->id('Answer_ID');
-            $table->unsignedBigInteger('Question_ID');
-            $table->string('LRN');
-            $table->string('Answer');
-            $table->integer('Score');
+            $table->id('answer_id');
+            $table->unsignedBigInteger('question_id');
+            $table->string('lrn');
+            $table->string('answer');
+            $table->integer('score');
             $table->timestamps();
 
             // Foreign Keys
@@ -219,13 +223,13 @@ return new class extends Migration
         });
 
         Schema::create('assessment_answers', function (Blueprint $table) {
-            $table->id('answerID');
-            $table->string('LRN');
-            $table->unsignedBigInteger('assessmentID');
-            $table->string('Link')->nullable();
-            $table->integer('Score')->nullable();
-            $table->date('Date_submission');
-            $table->string('File')->nullable();
+            $table->id('answerid');
+            $table->string('lrn');
+            $table->unsignedBigInteger('assessmentid');
+            $table->string('link')->nullable();
+            $table->integer('score')->nullable();
+            $table->date('date_submission');
+            $table->string('file')->nullable();
             $table->timestamps();
 
             // Foreign Keys
@@ -234,11 +238,11 @@ return new class extends Migration
         });
 
         Schema::create('media', function (Blueprint $table) {
-            $table->id('Media_ID');
-            $table->unsignedBigInteger('Lesson_ID');
-            $table->unsignedBigInteger('Uploader_ID');
-            $table->string('Type');
-            $table->string('Filename');
+            $table->id('media_id');
+            $table->unsignedBigInteger('lesson_id');
+            $table->unsignedBigInteger('uploader_id');
+            $table->string('type');
+            $table->string('filename');
             $table->timestamps();
 
             // Foreign Keys

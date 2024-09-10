@@ -7,8 +7,11 @@ use App\Models\Subject;
 use App\Models\Assessment;
 use App\Http\Requests\StoreExecuteRequest;
 use App\Http\Requests\UpdateExecuteRequest;
+use App\Models\Admin;
+use App\Models\Learner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class ExecuteController extends Controller
 {
@@ -18,15 +21,6 @@ class ExecuteController extends Controller
     public function index()
     {
         //
-        // $subject = Subject::all();
-        // $subject = Subject::where("Program", "alsElem")->get();
-        // $subject = DB::table('classes')
-        //     ->rightJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID')
-        //     ->where("Program", "alsElem")
-        //     ->select('subjects.image', 'subjects.subject_name', 'classes.Schedule')
-        //     ->get();
-        // return $subject;
-
         $dayOfWeek = date('N'); // Get the day of the week (1 = Monday, 7 = Sunday)
 
         $program = '';
@@ -80,8 +74,6 @@ class ExecuteController extends Controller
     public function show($id)
     {
         //
-        // $subject = Subject::find($id);
-        // $subject = Subject::where('subjectID', $id)->first();
         $subject = DB::table('classes')
                 ->rightJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID')
                 ->select('subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule')
@@ -94,15 +86,6 @@ class ExecuteController extends Controller
         } else {
             return response()->json(['message' => 'Subject not found'], 404);
         }
-
-        // Find the subject by ID
-        // $subject = Subject::find($id);
-
-        // if ($subject) {
-        //     return response()->json($subject);
-        // } else {
-        //     return response()->json(['message' => 'Subject not found'], 404);
-        // }
     }
 
     /**
@@ -124,13 +107,6 @@ class ExecuteController extends Controller
     public function showAll()
     {
         //
-        // $subject = Subject::all();
-        // $subject = Subject::where("Program", "alsElem")->get();
-        // $subject = DB::table('classes')
-        //     ->rightJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID')
-        //     ->where("Program", "blp")
-        //     ->select('subjects.image', 'subjects.subject_name', 'classes.Schedule')
-        //     ->get();
         $subject = DB::table('classes')
             ->rightJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID')
             ->select('subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule')
@@ -143,6 +119,7 @@ class ExecuteController extends Controller
         //
         $assess = DB::table('assessments')
         ->select(
+            'assessments.assessmentID',
             'assessments.Title',
             'assessments.Instruction',
             'assessments.Description',
@@ -151,5 +128,66 @@ class ExecuteController extends Controller
         ->get();
 
         return $assess;
+    }
+
+    public function registerAdmin(Request $request){
+        $formField = $request->validate([
+            'firstname' => 'required|string|max:255',
+            'middlename' => 'required|string|max:255',
+            'lastname' => 'required|string|max:255',
+            'gender' => 'required|string|max:255',
+            'birthdate' => 'required|date',
+            'address' => 'required|string|max:255',
+            'mobile_number' => 'required|string|max:255',
+            'role' => 'required|string|max:255',
+            'email' => 'required|email|unique:users',
+            'password' => 'required|confirmed'
+        ]);
+
+        Admin::create($formField);
+
+        return 'registered';
+    }
+
+    public function loginAdmin(Request $request){
+        $request->validate([
+            'email' => 'required|email|exists:admins',
+            'password' => 'required'
+        ]);
+
+        $user = Admin::where('email', $request->email)->first();
+
+        if(!$user || !Hash::check($request->password, $user->password)){
+            return [
+                'message' => 'The Provided Credentials are incorrect'
+            ];
+        };
+        $token = $user->createToken($user->lastname);
+
+        return [
+            'user' => $user,
+            'token' => $token->plainTextToken
+        ];
+    }
+
+    public function loginLearner(Request $request){
+        $request->validate([
+            'email' => 'required|email|exists:learners',
+            'password' => 'required'
+        ]);
+
+        $user = Learner::where('email', $request->email)->first();
+
+        if(!$user || !Hash::check($request->password, $user->password)){
+            return [
+                'message' => 'The Provided Credentials are incorrect'
+            ];
+        };
+        $token = $user->createToken($user->lastname);
+
+        return [
+            'user' => $user,
+            'token' => $token->plainTextToken
+        ];
     }
 }
