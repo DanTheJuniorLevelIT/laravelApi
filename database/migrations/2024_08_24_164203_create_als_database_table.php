@@ -175,7 +175,7 @@ return new class extends Migration
 
         Schema::create('assessments', function (Blueprint $table) {
             $table->id('assessmentid');
-            $table->unsignedBigInteger('lesson-id');
+            $table->unsignedBigInteger('lesson_id');
             $table->string('title');
             $table->text('instruction');
             $table->text('description');

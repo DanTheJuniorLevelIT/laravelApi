@@ -21,6 +21,14 @@ class ExecuteController extends Controller
     public function index()
     {
         //
+
+        // Get the currently logged-in teacher's ID (assuming the teacher is logged in)
+        // $teacherId = auth('admin')->user()->adminID;  // Adjust this according to how you're handling authentication
+    
+        // Get today's day name (e.g., 'Monday', 'Tuesday', etc.)
+        $today = date('l');
+
+
         $dayOfWeek = date('N'); // Get the day of the week (1 = Monday, 7 = Sunday)
 
         $program = '';
@@ -31,15 +39,22 @@ class ExecuteController extends Controller
         } elseif (in_array($dayOfWeek, [2, 3])) {
             $program = 'alsElem';
         } elseif (in_array($dayOfWeek, [4, 5])) {
-            $program = 'aleJhs';
+            $program = 'alsJhs';
         }
 
         // Retrieve the subjects based on the program
+        // $subject = DB::table('classes')
+        //     ->rightJoin('subjects', 'classes.subjectid', '=', 'subjects.subjectid')
+        //     ->rightJoin('rooms', 'classes.roomid', '=', 'rooms.roomid')
+        //     ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.schedule', 'rooms.school')
+        //     ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
+        //     ->get();
         $subject = DB::table('classes')
-            ->rightJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID')
-            ->select('subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.Schedule')
-            ->where('subjects.Program', '=', $program)
-            ->get();
+                ->leftJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID') // left join
+                ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid') // left join
+                ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.schedule', 'rooms.location')
+                ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
+                ->get();
 
         return $subject;
     }
@@ -56,11 +71,11 @@ class ExecuteController extends Controller
     {
         //
         $validatedData = $request->validate([
-            'Lesson_ID' => 'required|integer',
-            'Title' => 'required|string|max:255',
-            'Instruction' => 'required|string|max:255',
-            'Description' => 'required|string|max:255',
-            'Due_date' => 'date',
+            'lesson_id' => 'required|integer',
+            'title' => 'required|string|max:255',
+            'instruction' => 'required|string|max:255',
+            'description' => 'required|string|max:255',
+            'due_date' => 'date',
         ]);
 
         $assess = Assessment::create($validatedData);
@@ -76,13 +91,55 @@ class ExecuteController extends Controller
         //
         $subject = DB::table('classes')
                 ->rightJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID')
-                ->select('subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule')
-                ->where('subjects.subjectID', '=', $id)
+                ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule')
+                // ->where('subjects.subjectID', '=', $id)
+                ->where('classes.classid', '=', $id)
                 ->get();
 
         if ($subject) {
             return response()->json($subject);
             // return $subject;
+        } else {
+            return response()->json(['message' => 'Subject not found'], 404);
+        }
+    }
+
+    public function teacherSubjects($id)
+    {
+        //
+        // Get today's day name (e.g., 'Monday', 'Tuesday', etc.)
+        $today = date('l');
+
+        // Retrieve the subjects based on the program
+        // $subject = DB::table('classes')
+        //     ->rightJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID')
+        //     ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.schedule')
+        //     ->where('classes.adminid', $id) 
+        //     ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
+        //     ->get();
+        $subject = DB::table('classes')
+            ->leftJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID') // left join
+            ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid') // left join
+            ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.schedule', 'rooms.school')
+            ->where('classes.adminid', $id) 
+            ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
+            ->get();
+
+        $school = DB::table('classes')
+            ->leftJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID') // left join
+            ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid') // left join
+            ->select('rooms.school')
+            ->where('classes.adminid', $id) 
+            ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
+            ->first();
+
+        if ($subject) {
+            // return response()->json($subject);
+            // return $subject;
+            return [
+                'subject' => $subject,
+                'school' => $school
+            ];
         } else {
             return response()->json(['message' => 'Subject not found'], 404);
         }
@@ -109,9 +166,24 @@ class ExecuteController extends Controller
         //
         $subject = DB::table('classes')
             ->rightJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID')
-            ->select('subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule')
+            // ->select('subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule')
+            ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule')
             ->get();
         return $subject;
+        
+    }
+
+    public function teacherAllSubjects($id)
+    {
+        //
+        $subject = DB::table('classes')
+            ->leftJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID')
+            ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid')
+            ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule', 'rooms.school')
+            ->where('classes.adminid', $id) 
+            ->get();
+
+        return $subject;;
     }
 
     public function showAssessment()
@@ -163,8 +235,10 @@ class ExecuteController extends Controller
             ];
         };
         $token = $user->createToken($user->lastname);
+        $adminid = $user->adminID;
 
         return [
+            'adminid' => $adminid,
             'user' => $user,
             'token' => $token->plainTextToken
         ];
@@ -188,6 +262,13 @@ class ExecuteController extends Controller
         return [
             'user' => $user,
             'token' => $token->plainTextToken
+        ];
+    }
+
+    public function logoutAdmin(Request $request){
+        $request->user()->tokens()->delete();
+        return [
+            'message' => 'You are Logged out'
         ];
     }
 }

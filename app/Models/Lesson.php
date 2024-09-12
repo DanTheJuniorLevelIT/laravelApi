@@ -9,11 +9,11 @@ class Lesson extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'Lesson_ID',
-        'Module_ID',
-        'Topic_Title',
-        'Lesson',
-        'Handout',
-        'File'
+        'lesson_id',
+        'module_id',
+        'topic_title',
+        'lesson',
+        'handout',
+        'file'
     ];
 }

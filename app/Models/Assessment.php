@@ -9,11 +9,11 @@ class Assessment extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'assessmentID',
-        'Lesson_ID',
-        'Title',
-        'Instruction',
-        'Description',
-        'Due_date'
+        'assessmentid',
+        'lesson_id',
+        'title',
+        'instruction',
+        'description',
+        'due_date'
     ];
 }

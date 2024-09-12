@@ -9,9 +9,10 @@ class Classes extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'adminID',
-        'subjectID',
-        'RoomID',
-        'Schedule'
+        'classid',
+        'adminid',
+        'subjectid',
+        'roomID',
+        'schedule'
     ];
 }
