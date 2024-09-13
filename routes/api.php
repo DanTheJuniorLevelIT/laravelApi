@@ -19,6 +19,7 @@ Route::post('/subjects/create', [ExecuteController::class, 'createAssessment']);
 Route::get('/subjects/showAll', [ExecuteController::class, 'showAll']);
 Route::get('/subjects/allSubjects/{id}', [ExecuteController::class, 'teacherAllSubjects']);
 Route::get('/subjects/assessment', [ExecuteController::class, 'showAssessment']);
+Route::get('/modules/{id}', [ExecuteController::class, 'showSubModules']);
 Route::get('/subjects/{id}', [ExecuteController::class, 'show']);
 Route::get('/teacherSub/{id}', [ExecuteController::class, 'teacherSubjects']);
 // Route::middleware(['auth:admin'])->group(function () {

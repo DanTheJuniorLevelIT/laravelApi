@@ -122,7 +122,8 @@ class ExecuteController extends Controller
             ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid') // left join
             ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.schedule', 'rooms.school')
             ->where('classes.adminid', $id) 
-            ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
+            // ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
+            ->where('classes.schedule', 'LIKE', '%Thursday%') // Filter based on today's day
             ->get();
 
         $school = DB::table('classes')
@@ -130,7 +131,8 @@ class ExecuteController extends Controller
             ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid') // left join
             ->select('rooms.school')
             ->where('classes.adminid', $id) 
-            ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
+            // ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
+            ->where('classes.schedule', 'LIKE', '%Thursday%') // Filter based on today's day
             ->first();
 
         if ($subject) {
@@ -142,6 +144,26 @@ class ExecuteController extends Controller
             ];
         } else {
             return response()->json(['message' => 'Subject not found'], 404);
+        }
+    }
+
+    public function showSubModules($id)
+    {
+        $modules = DB::table('classes')
+            ->rightJoin('modules', 'classes.classid', '=', 'modules.classid')
+            ->select('modules.modules_id', 'modules.title')
+            ->where('classes.classid', $id)
+            ->get();
+
+        if ($modules) {
+            // return response()->json($subject);
+            // return $subject;
+            return [
+                'modules' => $modules
+                // 'school' => $school
+            ];
+        } else {
+            return response()->json(['message' => 'Modules not found'], 404);
         }
     }
 
