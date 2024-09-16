@@ -9,6 +9,8 @@ use App\Http\Requests\StoreExecuteRequest;
 use App\Http\Requests\UpdateExecuteRequest;
 use App\Models\Admin;
 use App\Models\Learner;
+use App\Models\Question;
+use App\Models\Option;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -81,6 +83,55 @@ class ExecuteController extends Controller
         $assess = Assessment::create($validatedData);
         return response()->json($assess, 201);
     }
+
+    public function createQuestion(Request $request)
+    {
+        $request->validate([
+            'assessment_id' => 'required',
+            'question' => 'required|string',
+            'type' => 'required|string',
+            'key_answer' => 'required|string',
+            'points' => 'required|integer',
+            'options' => 'array', // Validate that options is an array (for multiple-choice)
+        ]);
+
+        // Create question
+        $question = Question::create([
+            'assessment_id' => $request->assessment_id,
+            'question' => $request->question,
+            'type' => $request->type,
+            'key_answer' => $request->key_answer,
+            'points' => $request->points,
+        ]);
+
+        $options = [];
+
+        // Save the options for multiple-choice questions
+        if ($request->type === 'multiple-choice' && !empty($request->options)) {
+            foreach ($request->options as $optionText) {
+                $option = Option::create([
+                    'question_id' => $question->id,
+                    'option_text' => $optionText,
+                ]);
+                $options[] = $optionText; // Store the options for returning in the response
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Question created successfully',
+            'question' => [
+                'question_id' => $question->id,
+                'assessment_id' => $question->assessment_id,
+                'question' => $question->question,
+                'type' => $question->type,
+                'key_answer' => $question->key_answer,
+                'points' => $question->points,
+                'options' => $options,  // Return the options
+            ]
+        ], 201);
+    }
+
 
     /**
      * Display the specified resource.
@@ -167,12 +218,195 @@ class ExecuteController extends Controller
         }
     }
 
+    public function showAssessmentDetails($id)
+    {
+        $assess = DB::table('lessons')
+            ->rightJoin('assessments', 'lessons.lesson_id', '=', 'assessments.lesson_id')
+            ->select('assessments.assessmentid', 'assessments.title', 'assessments.instruction', 'assessments.description')
+            ->where('assessments.assessmentid', $id)
+            ->first();
+            // ->get();
+
+        return $assess;
+    }
+
+    // public function showQuestions($id)
+    // {
+    //     $question = DB::table('questions')
+    //         ->rightJoin('assessments', 'questions.assessment_id', '=', 'assessments.assessmentid')
+    //         ->rightJoin('options', 'questions.question_id', '=', 'options.question_id')
+    //         ->select('questions.question', 'questions.type', 'questions.key_answer', 'questions.points', 'options.option_text')
+    //         ->where('questions.assessment_id', $id)
+    //         ->get();
+        
+    //     return $question;
+    // }
+
+    // public function showQuestions($id)
+    // {
+    //     // Fetch questions and include options if the type is 'multiple-choice'
+    //     $questions = DB::table('questions')
+    //         ->leftJoin('options', 'questions.question_id', '=', 'options.question_id')
+    //         ->select(
+    //             'questions.question_id',
+    //             'questions.assessment_id',
+    //             'questions.question',
+    //             'questions.type',
+    //             'questions.key_answer',
+    //             'questions.points',
+    //             'questions.created_at',
+    //             'questions.updated_at',
+    //             'options.option_text',
+    //             'options.option_id'
+    //         )
+    //         ->where('questions.assessment_id', $id)
+    //         ->orderBy('questions.created_at', 'asc')
+    //         ->get();
+
+    //     // Group the questions and their associated options together
+    //     $groupedQuestions = $questions->groupBy('question_id')->map(function ($questionGroup) {
+    //         $question = $questionGroup->first();
+
+    //         return [
+    //             'question_id' => $question->question_id,
+    //             'question' => $question->question,
+    //             'type' => $question->type,
+    //             'key_answer' => $question->key_answer,
+    //             'points' => $question->points,
+    //             'created_at' => $question->created_at,
+    //             'updated_at' => $question->updated_at,
+    //             'options' => $question->type === 'multiple-choice' ? $questionGroup->pluck('option_text') : null,
+    //         ];
+    //     });
+
+    //     return response()->json($groupedQuestions);
+    //     // return $groupedQuestions;
+    // }
+
+    public function showQuestions($id)
+    {
+        // Fetch questions and include options if the type is 'multiple-choice'
+        $questions = DB::table('questions')
+            ->leftJoin('options', 'questions.question_id', '=', 'options.question_id')
+            ->select(
+                'questions.question_id',
+                'questions.assessment_id',
+                'questions.question',
+                'questions.type',
+                'questions.key_answer',
+                'questions.points',
+                'questions.created_at',
+                'questions.updated_at',
+                'options.option_text'
+            )
+            ->where('questions.assessment_id', $id)
+            ->orderBy('questions.created_at', 'asc')
+            ->get();
+
+        // Group the questions and their associated options together
+        $groupedQuestions = $questions->groupBy('question_id')->map(function ($questionGroup) {
+            $question = $questionGroup->first(); // Get the first record for each group
+
+            return [
+                'question_id' => $question->question_id,
+                'assessment_id' => $question->assessment_id,
+                'question' => $question->question,
+                'type' => $question->type,
+                'key_answer' => $question->key_answer,
+                'points' => $question->points,
+                'created_at' => $question->created_at,
+                'updated_at' => $question->updated_at,
+                // Collect options if it's a multiple-choice question
+                'options' => $question->type === 'multiple-choice' ? $questionGroup->pluck('option_text')->filter()->all() : null,
+            ];
+        })->values(); // Ensure it's a flat array, not an associative collection
+
+        // Return a structured JSON response
+        return response()->json([
+            'status' => 'success',
+            'data' => $groupedQuestions
+        ]);
+    }
+
     /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, Execute $execute)
     {
         //
+    }
+
+    public function editQuestion(Request $request, $id)
+    {
+        // Find the question
+        // $question = Question::find($id);
+        $question = DB::table('questions')
+            ->where('question_id', $id)
+            ->first();
+
+        // return $question;
+
+        if (!$question) {
+            return response()->json(['message' => 'Question not found'], 404);
+        }
+
+        // Validate the request
+        $request->validate([
+            'question' => 'required|string',
+            'type' => 'required|string',
+            'key_answer' => 'required|string',
+            'points' => 'required|integer',
+            'options' => 'array', // Only required if multiple-choice
+        ]);
+
+        // Update the question
+        DB::table('questions')
+        ->where('question_id', $id)
+        ->update([
+            'question' => $request->question,
+            'type' => $request->type,
+            'key_answer' => $request->key_answer,
+            'points' => $request->points,
+        ]);
+
+        // Handle options for multiple-choice questions
+        if ($request->type === 'multiple-choice') {
+            // Delete existing options
+            DB::table('options')->where('question_id', $id)->delete();
+
+            // Add new options
+            if (!empty($request->options)) {
+                foreach ($request->options as $optionText) {
+                    DB::table('options')->insert([
+                        'question_id' => $id,
+                        'option_text' => $optionText,
+                    ]);
+                }
+            }
+        } else {
+            // Delete options if not multiple-choice
+            DB::table('options')->where('question_id', $id)->delete();
+        }
+
+        // Fetch updated options
+        $options = [];
+        if ($request->type === 'multiple-choice') {
+            $options = Option::where('question_id', $question->question_id)->pluck('option_text');
+        }
+
+        // Return the updated question
+        return response()->json([
+            'message' => 'Question updated successfully',
+            'question' => [
+                'question_id' => $question->question_id,
+                'assessment_id' => $question->assessment_id,
+                'question' => $question->question,
+                'type' => $question->type,
+                'key_answer' => $question->key_answer,
+                'points' => $question->points,
+                'options' => $options,
+            ]
+        ], 200);
     }
 
     /**
