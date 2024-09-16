@@ -11,6 +11,9 @@ use App\Models\Admin;
 use App\Models\Learner;
 use App\Models\Question;
 use App\Models\Option;
+use App\Models\Answer;
+use App\Models\Assessment_Answer;
+use App\Models\Roster;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -174,7 +177,7 @@ class ExecuteController extends Controller
             ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.schedule', 'rooms.school')
             ->where('classes.adminid', $id) 
             // ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
-            ->where('classes.schedule', 'LIKE', '%Thursday%') // Filter based on today's day
+            ->where('classes.schedule', 'LIKE', '%Monday%') // Filter based on today's day
             ->get();
 
         $school = DB::table('classes')
@@ -230,59 +233,6 @@ class ExecuteController extends Controller
         return $assess;
     }
 
-    // public function showQuestions($id)
-    // {
-    //     $question = DB::table('questions')
-    //         ->rightJoin('assessments', 'questions.assessment_id', '=', 'assessments.assessmentid')
-    //         ->rightJoin('options', 'questions.question_id', '=', 'options.question_id')
-    //         ->select('questions.question', 'questions.type', 'questions.key_answer', 'questions.points', 'options.option_text')
-    //         ->where('questions.assessment_id', $id)
-    //         ->get();
-        
-    //     return $question;
-    // }
-
-    // public function showQuestions($id)
-    // {
-    //     // Fetch questions and include options if the type is 'multiple-choice'
-    //     $questions = DB::table('questions')
-    //         ->leftJoin('options', 'questions.question_id', '=', 'options.question_id')
-    //         ->select(
-    //             'questions.question_id',
-    //             'questions.assessment_id',
-    //             'questions.question',
-    //             'questions.type',
-    //             'questions.key_answer',
-    //             'questions.points',
-    //             'questions.created_at',
-    //             'questions.updated_at',
-    //             'options.option_text',
-    //             'options.option_id'
-    //         )
-    //         ->where('questions.assessment_id', $id)
-    //         ->orderBy('questions.created_at', 'asc')
-    //         ->get();
-
-    //     // Group the questions and their associated options together
-    //     $groupedQuestions = $questions->groupBy('question_id')->map(function ($questionGroup) {
-    //         $question = $questionGroup->first();
-
-    //         return [
-    //             'question_id' => $question->question_id,
-    //             'question' => $question->question,
-    //             'type' => $question->type,
-    //             'key_answer' => $question->key_answer,
-    //             'points' => $question->points,
-    //             'created_at' => $question->created_at,
-    //             'updated_at' => $question->updated_at,
-    //             'options' => $question->type === 'multiple-choice' ? $questionGroup->pluck('option_text') : null,
-    //         ];
-    //     });
-
-    //     return response()->json($groupedQuestions);
-    //     // return $groupedQuestions;
-    // }
-
     public function showQuestions($id)
     {
         // Fetch questions and include options if the type is 'multiple-choice'
@@ -327,6 +277,303 @@ class ExecuteController extends Controller
             'data' => $groupedQuestions
         ]);
     }
+
+    public function getCompletionStats($id)
+    {
+        // Get total students in the assessment
+        $totalStudents = Learner::count();
+
+        // Get students who have submitted their answers
+        $completedStudents = Answer::whereIn('question_id', function($query) use ($id) {
+            $query->select('question_id')
+                ->from('questions')
+                ->where('assessment_id', $id);
+        })->distinct('lrn')->count('lrn'); // Count distinct learners who answered
+
+        // Return the result
+        return response()->json([
+            'completed' => $completedStudents,
+            'total' => $totalStudents
+        ], 200);
+    }
+
+    
+    // public function showStudents($id)
+    // {
+    //     // Get the learners from the roster of a class
+    //     $learners = Roster::where('classid', $id)
+    //         ->join('learners', 'rosters.lrn', '=', 'learners.lrn')
+    //         ->select('learners.lrn', 'learners.firstname', 'learners.lastname')
+    //         ->get();
+
+    //     // Return the list of learners as a JSON response
+    //     return response()->json($learners);
+    // }
+
+    public function showStudents($classid, $assessment_id)
+    {
+        // Get the total number of questions for the assessment
+        $totalQuestions = Question::where('assessment_id', $assessment_id)->count();
+
+        // Get the learners from the roster of a class
+        $learners = Roster::where('classid', $classid)
+            ->join('learners', 'rosters.lrn', '=', 'learners.lrn')
+            ->select('learners.lrn', 'learners.firstname', 'learners.lastname')
+            ->get();
+
+        $learnersScores = Roster::where('classid', $classid)
+            ->leftJoin('learners', 'rosters.lrn', '=', 'learners.lrn')
+            ->leftJoin('assessment_answers', 'rosters.lrn', '=', 'assessment_answers.lrn')
+            ->select('learners.lrn', 'learners.firstname', 'learners.lastname', 'assessment_answers.score')
+            ->get();
+
+        // Check completion status for each student
+        $learnersWithCompletionStatus = $learnersScores->map(function ($learner) use ($assessment_id, $totalQuestions) {
+            // Count how many answers the student has submitted for this assessment
+            $answersCount = Answer::where('lrn', $learner->lrn)
+                ->whereIn('question_id', function($query) use ($assessment_id) {
+                    $query->select('question_id')
+                        ->from('questions')
+                        ->where('assessment_id', $assessment_id);
+                })
+                ->count();
+
+            // Check if the student has completed the assessment
+            $learner->completed = ($answersCount == $totalQuestions);
+            
+            return $learner;
+        });
+
+        // Return the list of learners with their completion status
+        return [
+            'status' => $learnersWithCompletionStatus,
+            'score' => $learnersScores
+        ];
+    }
+
+    //1st approach
+    // public function autoCheck($classid, $assessment_id)
+    // {
+    //     // Get the total number of questions for the assessment
+    //     $totalQuestions = Question::where('assessment_id', $assessment_id)->count();
+
+    //     // Get the learners from the roster of a class
+    //     $learners = Roster::where('classid', $classid)
+    //         ->join('learners', 'rosters.lrn', '=', 'learners.lrn')
+    //         ->select('learners.lrn', 'learners.firstname', 'learners.lastname')
+    //         ->get();
+
+    //     // Loop through each learner and perform auto-check
+    //     foreach ($learners as $learner) {
+    //         // Get all answers the student submitted for the assessment
+    //         $answers = Answer::where('lrn', $learner->lrn)
+    //             ->whereIn('question_id', function($query) use ($assessment_id) {
+    //                 $query->select('question_id')
+    //                     ->from('questions')
+    //                     ->where('assessment_id', $assessment_id);
+    //             })
+    //             ->get();
+
+    //         // Calculate the total score
+    //         $totalScore = 0;
+    //         foreach ($answers as $answer) {
+    //             // Get the correct answer from the Question model
+    //             $correctAnswer = Question::where('question_id', $answer->question_id)->value('key_answer');
+                
+    //             // Check if the student's answer matches the correct answer
+    //             if ($answer->answer == $correctAnswer) {
+    //                 // Add the points for this question
+    //                 $questionPoints = Question::where('question_id', $answer->question_id)->value('points');
+    //                 $totalScore += $questionPoints;
+    //             }
+    //         }
+
+    //         // Check if the student has completed all questions
+    //         $completed = (count($answers) == $totalQuestions);
+
+    //         // Update learner completion status and score
+    //         $learner->completed = $completed;
+    //         $learner->score = $totalScore;
+
+    //         // Optionally, save the score to the database (you would need to modify the Learner model)
+    //         // $learner->save();
+    //     }
+
+    //     return response()->json($learners);
+    // }
+
+    // public function showStudentAnswers($assessment_id, $lrn)
+    // {
+    //     // Retrieve the assessment questions and the student's answers
+    //     $questions = Question::where('assessment_id', $assessment_id)->get();
+    //     $studentAnswers = Answer::where('lrn', $lrn)->get();
+
+    //     // Attach the answers to the questions
+    //     foreach ($questions as $question) {
+    //         $answer = $studentAnswers->firstWhere('question_id', $question->question_id);
+    //         $question->student_answer = $answer ? $answer->answer : null;
+    //     }
+
+    //     return response()->json($questions);
+    // }
+
+    // public function showStudentAnswers($assessmentId, $lrn)
+    // {
+    //     // Fetch the questions associated with the assessment
+    //     $questions = Question::where('assessment_id', $assessmentId)
+    //                 ->with(['options']) // If you want to include the answer options
+    //                 ->get();
+
+    //     // Fetch the student's answers for the corresponding questions
+    //     $studentAnswers = Answer::whereIn('question_id', $questions->pluck('question_id'))
+    //                     ->where('lrn', $lrn)
+    //                     ->get();
+
+    //     // Merge the questions and answers
+    //     $response = [];
+    //     foreach ($questions as $question) {
+    //         $answer = $studentAnswers->firstWhere('question_id', $question->question_id);
+    //         $response[] = [
+    //             'question' => $question->question,
+    //             'options' => $question->options, // If applicable
+    //             'key_answer' => $question->key_answer, // Correct answer
+    //             'student_answer' => $answer ? $answer->answer : null,
+    //             'score' => $answer ? $answer->score : 0
+    //         ];
+    //     }
+
+    //     // Return the response in a JSON format
+    //     return response()->json([
+    //         'status' => 'success',
+    //         'data' => $response
+    //     ]);
+    // }
+
+    public function showStudentAnswers($assessmentId, $lrn)
+    {
+        // Fetch the questions associated with the assessment
+        $questions = Question::where('assessment_id', $assessmentId)
+                    ->with(['options']) // Include the answer options
+                    ->get();
+
+        // Fetch the student's answers for the corresponding questions
+        $studentAnswers = Answer::whereIn('question_id', $questions->pluck('question_id'))
+                        ->where('lrn', $lrn)
+                        ->get();
+
+        // Variables to keep track of the total score and possible maximum score
+        $totalScore = 0;
+        $maxScore = 0;
+
+        // Merge the questions and answers, calculate scores
+        $response = [];
+        foreach ($questions as $question) {
+            $answer = $studentAnswers->firstWhere('question_id', $question->question_id);
+
+            // Check if the student's answer is correct and assign score accordingly
+            $score = 0;
+            if ($answer && $answer->answer === $question->key_answer) {
+                $score = $question->points; // Assume each question has a `points` attribute
+            }
+
+            // Increment total possible score
+            $maxScore += $question->points;
+
+            // Add to the total score
+            $totalScore += $score;
+
+            // Add question, student's answer, and calculated score to the response
+            $response[] = [
+                'question' => $question->question,
+                'options' => $question->options, // If applicable
+                'key_answer' => $question->key_answer, // Correct answer
+                'student_answer' => $answer ? $answer->answer : null,
+                'score' => $score,
+                'max_points' => $question->points // Maximum points for the question
+            ];
+        }
+
+        // Return the response with individual questions, student's answers, and total score
+        return response()->json([
+            'status' => 'success',
+            'data' => $response,
+            'total_score' => $totalScore,
+            'max_score' => $maxScore,
+        ]);
+    }
+
+
+
+    //2nd approach
+    public function autoCheck($classid, $assessment_id)
+    {
+        // Get the total number of questions for the assessment
+        $questions = Question::where('assessment_id', $assessment_id)->get();
+        $totalQuestions = Question::where('assessment_id', $assessment_id)->count();
+
+        // Get learners from the roster of a class
+        $learners = Roster::where('classid', $classid)
+            ->join('learners', 'rosters.lrn', '=', 'learners.lrn')
+            ->select('learners.lrn', 'learners.firstname', 'learners.lastname')
+            ->get();
+
+        // Check completion status for each student
+        $learnersWithCompletionStatus = $learners->map(function ($learner) use ($assessment_id, $totalQuestions) {
+            // Count how many answers the student has submitted for this assessment
+            $answersCount = Answer::where('lrn', $learner->lrn)
+                ->whereIn('question_id', function($query) use ($assessment_id) {
+                    $query->select('question_id')
+                        ->from('questions')
+                        ->where('assessment_id', $assessment_id);
+                })
+                ->count();
+
+            // Check if the student has completed the assessment
+            $learner->completed = ($answersCount == $totalQuestions);
+            
+            return $learner;
+        });
+
+        foreach ($learners as $learner) {
+            $totalScore = 0;
+            $completed = true;
+
+            foreach ($questions as $question) {
+                // Find the student's answer to the question
+                $answer = Answer::where('lrn', $learner->lrn)
+                    ->where('question_id', $question->question_id)
+                    ->first();
+
+                if ($answer) {
+                    // Check if the answer is correct
+                    if ($answer->answer == $question->key_answer) {
+                        $totalScore += $question->points;
+                    }
+                } else {
+                    // Mark as incomplete if an answer is missing
+                    $completed = false;
+                }
+            }
+
+            // Save the score in the Assessment_Answer table
+            Assessment_Answer::updateOrCreate(
+                ['lrn' => $learner->lrn, 'assessmentid' => $assessment_id],
+                ['score' => $totalScore, 'date_submission' => now()]
+            );
+
+            // Attach the score to the learner object
+            $learner->score = $totalScore;
+        }
+
+        // Return learners with their scores
+        return [
+            'score' => $learners,
+            'status' => $learnersWithCompletionStatus
+        ];
+    }
+
+
+
 
     /**
      * Update the specified resource in storage.
@@ -473,6 +720,27 @@ class ExecuteController extends Controller
         ]);
 
         Admin::create($formField);
+
+        return 'registered';
+    }
+
+    public function registerLearner(Request $request){
+        $formField = $request->validate([
+            'lrn' => 'required|string|max:255',
+            'firstname' => 'required|string|max:255',
+            'middlename' => 'required|string|max:255',
+            'lastname' => 'required|string|max:255',
+            'extension_name' => 'nullable|string|max:255',
+            'birthdate' => 'required|date',
+            'placeofbirth' => 'nullable|string|max:255',
+            'education' => 'nullable|string|max:255',
+            'gender' => 'required|string',
+            'civil_status' => 'required|string',
+            'email' => 'required|email|unique:learners',
+            'password' => 'required|string|min:8|confirmed'
+        ]);
+
+        Learner::create($formField);
 
         return 'registered';
     }

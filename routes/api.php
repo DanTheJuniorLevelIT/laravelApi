@@ -12,6 +12,7 @@ Route::get('/', function () {
 
 Route::get('/subjects', [ExecuteController::class, 'index']);
 Route::post('/registerAdmin', [ExecuteController::class, 'registerAdmin']);
+Route::post('/registerLearner', [ExecuteController::class, 'registerLearner']);
 Route::post('/loginAdmin', [ExecuteController::class, 'loginAdmin']);
 Route::post('/logoutAdmin', [ExecuteController::class, 'logoutAdmin'])->middleware('auth:sanctum');
 Route::post('/loginLearner', [ExecuteController::class, 'loginLearner']);
@@ -24,6 +25,12 @@ Route::get('/subjects/showAll', [ExecuteController::class, 'showAll']);
 Route::get('/subjects/allSubjects/{id}', [ExecuteController::class, 'teacherAllSubjects']);
 Route::get('/subjects/assessment', [ExecuteController::class, 'showAssessment']);
 Route::get('/subjects/showAssessment/{id}', [ExecuteController::class, 'showAssessmentDetails']);
+route::get('/subjects/getCompleted/{id}', [ExecuteController::class, 'getCompletionStats']);
+Route::get('/subjects/students/{id}/{assid}', [ExecuteController::class, 'showStudents']);
+//1st approach
+// Route::get('/subjects/autocheck/{id}/{assid}', [ExecuteController::class, 'autoCheck']);
+Route::post('/subjects/autocheck/{id}/{assid}', [ExecuteController::class, 'autoCheck']);
+Route::get('/subjects/checking/{id}/{lrnid}', [ExecuteController::class, 'showStudentAnswers']);
 Route::get('/modules/{id}', [ExecuteController::class, 'showSubModules']);
 Route::get('/subjects/{id}', [ExecuteController::class, 'show']);
 Route::get('/teacherSub/{id}', [ExecuteController::class, 'teacherSubjects']);
