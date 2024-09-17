@@ -30,6 +30,7 @@ Route::get('/subjects/students/{id}/{assid}', [ExecuteController::class, 'showSt
 //1st approach
 // Route::get('/subjects/autocheck/{id}/{assid}', [ExecuteController::class, 'autoCheck']);
 Route::post('/subjects/autocheck/{id}/{assid}', [ExecuteController::class, 'autoCheck']);
+Route::post('/subjects/submitScore', [ExecuteController::class, 'submitScore']);
 Route::get('/subjects/checking/{id}/{lrnid}', [ExecuteController::class, 'showStudentAnswers']);
 Route::get('/modules/{id}', [ExecuteController::class, 'showSubModules']);
 Route::get('/subjects/{id}', [ExecuteController::class, 'show']);

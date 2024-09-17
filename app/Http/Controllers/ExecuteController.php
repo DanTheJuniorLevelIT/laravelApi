@@ -93,7 +93,7 @@ class ExecuteController extends Controller
             'assessment_id' => 'required',
             'question' => 'required|string',
             'type' => 'required|string',
-            'key_answer' => 'required|string',
+            'key_answer' => 'nullable|string',
             'points' => 'required|integer',
             'options' => 'array', // Validate that options is an array (for multiple-choice)
         ]);
@@ -176,8 +176,8 @@ class ExecuteController extends Controller
             ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid') // left join
             ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.schedule', 'rooms.school')
             ->where('classes.adminid', $id) 
-            // ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
-            ->where('classes.schedule', 'LIKE', '%Monday%') // Filter based on today's day
+            ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
+            // ->where('classes.schedule', 'LIKE', '%Monday%') // Filter based on today's day
             ->get();
 
         $school = DB::table('classes')
@@ -185,8 +185,8 @@ class ExecuteController extends Controller
             ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid') // left join
             ->select('rooms.school')
             ->where('classes.adminid', $id) 
-            // ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
-            ->where('classes.schedule', 'LIKE', '%Thursday%') // Filter based on today's day
+            ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
+            // ->where('classes.schedule', 'LIKE', '%Thursday%') // Filter based on today's day
             ->first();
 
         if ($subject) {
@@ -297,23 +297,13 @@ class ExecuteController extends Controller
         ], 200);
     }
 
-    
-    // public function showStudents($id)
-    // {
-    //     // Get the learners from the roster of a class
-    //     $learners = Roster::where('classid', $id)
-    //         ->join('learners', 'rosters.lrn', '=', 'learners.lrn')
-    //         ->select('learners.lrn', 'learners.firstname', 'learners.lastname')
-    //         ->get();
-
-    //     // Return the list of learners as a JSON response
-    //     return response()->json($learners);
-    // }
-
     public function showStudents($classid, $assessment_id)
     {
         // Get the total number of questions for the assessment
         $totalQuestions = Question::where('assessment_id', $assessment_id)->count();
+
+        // Calculate the total points for the assessment by summing up the points of each question
+        $totalPoints = Question::where('assessment_id', $assessment_id)->sum('points');
 
         // Get the learners from the roster of a class
         $learners = Roster::where('classid', $classid)
@@ -344,110 +334,14 @@ class ExecuteController extends Controller
             return $learner;
         });
 
-        // Return the list of learners with their completion status
+        // Return the list of learners with their completion status and total points
         return [
             'status' => $learnersWithCompletionStatus,
-            'score' => $learnersScores
+            'score' => $learnersScores,
+            'total_points' => $totalPoints // Include total points for the assessment
         ];
     }
 
-    //1st approach
-    // public function autoCheck($classid, $assessment_id)
-    // {
-    //     // Get the total number of questions for the assessment
-    //     $totalQuestions = Question::where('assessment_id', $assessment_id)->count();
-
-    //     // Get the learners from the roster of a class
-    //     $learners = Roster::where('classid', $classid)
-    //         ->join('learners', 'rosters.lrn', '=', 'learners.lrn')
-    //         ->select('learners.lrn', 'learners.firstname', 'learners.lastname')
-    //         ->get();
-
-    //     // Loop through each learner and perform auto-check
-    //     foreach ($learners as $learner) {
-    //         // Get all answers the student submitted for the assessment
-    //         $answers = Answer::where('lrn', $learner->lrn)
-    //             ->whereIn('question_id', function($query) use ($assessment_id) {
-    //                 $query->select('question_id')
-    //                     ->from('questions')
-    //                     ->where('assessment_id', $assessment_id);
-    //             })
-    //             ->get();
-
-    //         // Calculate the total score
-    //         $totalScore = 0;
-    //         foreach ($answers as $answer) {
-    //             // Get the correct answer from the Question model
-    //             $correctAnswer = Question::where('question_id', $answer->question_id)->value('key_answer');
-                
-    //             // Check if the student's answer matches the correct answer
-    //             if ($answer->answer == $correctAnswer) {
-    //                 // Add the points for this question
-    //                 $questionPoints = Question::where('question_id', $answer->question_id)->value('points');
-    //                 $totalScore += $questionPoints;
-    //             }
-    //         }
-
-    //         // Check if the student has completed all questions
-    //         $completed = (count($answers) == $totalQuestions);
-
-    //         // Update learner completion status and score
-    //         $learner->completed = $completed;
-    //         $learner->score = $totalScore;
-
-    //         // Optionally, save the score to the database (you would need to modify the Learner model)
-    //         // $learner->save();
-    //     }
-
-    //     return response()->json($learners);
-    // }
-
-    // public function showStudentAnswers($assessment_id, $lrn)
-    // {
-    //     // Retrieve the assessment questions and the student's answers
-    //     $questions = Question::where('assessment_id', $assessment_id)->get();
-    //     $studentAnswers = Answer::where('lrn', $lrn)->get();
-
-    //     // Attach the answers to the questions
-    //     foreach ($questions as $question) {
-    //         $answer = $studentAnswers->firstWhere('question_id', $question->question_id);
-    //         $question->student_answer = $answer ? $answer->answer : null;
-    //     }
-
-    //     return response()->json($questions);
-    // }
-
-    // public function showStudentAnswers($assessmentId, $lrn)
-    // {
-    //     // Fetch the questions associated with the assessment
-    //     $questions = Question::where('assessment_id', $assessmentId)
-    //                 ->with(['options']) // If you want to include the answer options
-    //                 ->get();
-
-    //     // Fetch the student's answers for the corresponding questions
-    //     $studentAnswers = Answer::whereIn('question_id', $questions->pluck('question_id'))
-    //                     ->where('lrn', $lrn)
-    //                     ->get();
-
-    //     // Merge the questions and answers
-    //     $response = [];
-    //     foreach ($questions as $question) {
-    //         $answer = $studentAnswers->firstWhere('question_id', $question->question_id);
-    //         $response[] = [
-    //             'question' => $question->question,
-    //             'options' => $question->options, // If applicable
-    //             'key_answer' => $question->key_answer, // Correct answer
-    //             'student_answer' => $answer ? $answer->answer : null,
-    //             'score' => $answer ? $answer->score : 0
-    //         ];
-    //     }
-
-    //     // Return the response in a JSON format
-    //     return response()->json([
-    //         'status' => 'success',
-    //         'data' => $response
-    //     ]);
-    // }
 
     public function showStudentAnswers($assessmentId, $lrn)
     {
@@ -461,6 +355,10 @@ class ExecuteController extends Controller
                         ->where('lrn', $lrn)
                         ->get();
 
+        $studentScore = Assessment_Answer::where('lrn', $lrn)
+                        ->select('score')
+                        ->first();
+
         // Variables to keep track of the total score and possible maximum score
         $totalScore = 0;
         $maxScore = 0;
@@ -468,6 +366,9 @@ class ExecuteController extends Controller
         // Merge the questions and answers, calculate scores
         $response = [];
         foreach ($questions as $question) {
+            // $studentScore = Assessment_Answer::where('lrn', $lrn)
+            //             ->select('score')
+            //             ->first();
             $answer = $studentAnswers->firstWhere('question_id', $question->question_id);
 
             // Check if the student's answer is correct and assign score accordingly
@@ -484,22 +385,34 @@ class ExecuteController extends Controller
 
             // Add question, student's answer, and calculated score to the response
             $response[] = [
+                'question_id' => $question->question_id,
                 'question' => $question->question,
+                'type' => $question->type,
                 'options' => $question->options, // If applicable
                 'key_answer' => $question->key_answer, // Correct answer
                 'student_answer' => $answer ? $answer->answer : null,
                 'score' => $score,
+                'points' => $question->points,
                 'max_points' => $question->points // Maximum points for the question
             ];
         }
 
         // Return the response with individual questions, student's answers, and total score
-        return response()->json([
+        // return response()->json([
+        //     'status' => 'success',
+        //     'data' => $response,
+        //     'studentScore' => $studentScore,
+        //     'total_score' => $totalScore,
+        //     'max_score' => $maxScore,
+        // ]);
+
+        return [
             'status' => 'success',
             'data' => $response,
+            'studentScore' => $studentScore,
             'total_score' => $totalScore,
             'max_score' => $maxScore,
-        ]);
+         ];
     }
 
 
@@ -572,7 +485,42 @@ class ExecuteController extends Controller
         ];
     }
 
+    //working
+    public function submitScore(Request $request) 
+    {
+        // Validate the incoming data
+        $validated = $request->validate([
+            'assessment_id' => 'required|integer',
+            'learner_id' => 'required|string',
+            'question_id' => 'required|integer',
+            'score' => 'required|numeric|min:0',
+        ]);
 
+        // Find the record of the student's answer for this question
+        $answer = Assessment_Answer::where('assessmentid', $request->assessment_id)
+                                    ->where('lrn', $request->learner_id)
+                                    // ->where('question_id', $request->question_id)
+                                    ->first();
+
+        if ($answer) {
+            // Add the essay score to the existing score (assuming `score` holds the points)
+            $answer->score += $request->score;  // Add points for the essay
+            $answer->save();
+
+            // Optionally, recalculate the total score for the assessment
+            $totalScore = Assessment_Answer::where('assessmentid', $request->assessment_id)
+                ->where('lrn', $request->learner_id)
+                ->sum('score');
+
+            return response()->json([
+                'status' => 'success', 
+                'message' => 'Score updated successfully',
+                'total_score' => $totalScore
+            ]);
+        } else {
+            return response()->json(['status' => 'error', 'message' => 'Answer not found'], 404);
+        }
+    }
 
 
     /**

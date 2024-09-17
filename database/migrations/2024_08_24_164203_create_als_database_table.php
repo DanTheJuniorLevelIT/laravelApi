@@ -191,7 +191,7 @@ return new class extends Migration
             $table->unsignedBigInteger('assessment_id');
             $table->string('question');
             $table->string('type');
-            $table->string('key_answer');
+            $table->string('key_answer')->nullable();
             $table->integer('points');
             $table->timestamps();
 
