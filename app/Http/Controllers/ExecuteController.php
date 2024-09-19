@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Execute;
 use App\Models\Subject;
 use App\Models\Assessment;
+use App\Models\Discussion;
+use App\Models\Discussion_Reply;
 use App\Http\Requests\StoreExecuteRequest;
 use App\Http\Requests\UpdateExecuteRequest;
 use App\Models\Admin;
@@ -70,6 +72,17 @@ class ExecuteController extends Controller
     public function store(Request $request)
     {
         //
+    }
+
+    public function createDiscussion(Request $request)
+    {
+        $validatedData = $request->validate([
+            'lesson_id' => 'required|integer',
+            'discussion_topic' => 'required|string|max:255'
+        ]);
+
+        $discuss = Discussion::create($validatedData);
+        return response()->json($discuss, 201);
     }
 
     public function createAssessment(Request $request)
@@ -522,6 +535,58 @@ class ExecuteController extends Controller
         }
     }
 
+    // Fetch discussion replies based on discussionID
+    //working
+    // public function viewDiscussionReplies($discussionid)
+    // {
+    //     $replies = Discussion_Reply::where('discussionid', $discussionid)
+    //         ->orderBy('created_at', 'asc')
+    //         ->get();
+
+    //     return response()->json($replies);
+    // }
+
+    public function viewDiscussionReplies($discussionid)
+    {
+        $replies = Discussion_Reply::where('discussionid', $discussionid)
+            ->leftJoin('admins', 'discussion_replies.adminID', '=', 'admins.adminID') // Join with the Admins table
+            ->leftJoin('learners', 'discussion_replies.lrn', '=', 'learners.lrn') // Join with the Learners table
+            ->select(
+                'discussion_replies.*',
+                'admins.firstname as teacher_firstname', 
+                'admins.lastname as teacher_lastname',
+                'learners.firstname as student_firstname',
+                'learners.lastname as student_lastname'
+            )
+            ->orderBy('discussion_replies.created_at', 'asc')
+            ->get();
+
+        return response()->json($replies);
+    }
+
+
+
+
+    // Store a new discussion reply
+    public function sendDiscussionReplies(Request $request)
+    {
+        $validated = $request->validate([
+            'discussionid' => 'required|integer',
+            'lrn' => 'nullable|string', // Only for students
+            'adminID' => 'nullable|integer', // Only for teachers
+            'reply' => 'required|string'
+        ]);
+
+        $reply = Discussion_Reply::create([
+            'discussionid' => $validated['discussionid'],
+            'lrn' => $validated['lrn'] ?? null,
+            'adminID' => $validated['adminID'] ?? null,
+            'reply' => $validated['reply']
+        ]);
+
+        return response()->json(['message' => 'Reply sent successfully', 'reply' => $reply]);
+    }
+
 
     /**
      * Update the specified resource in storage.
@@ -635,6 +700,30 @@ class ExecuteController extends Controller
             ->get();
 
         return $subject;;
+    }
+
+    public function showDiscussion()
+    {
+        //
+        // $assess = DB::table('discussions')
+        // ->select(
+        //     'assessments.assessmentID',
+        //     'assessments.Title',
+        //     'assessments.Instruction',
+        //     'assessments.Description',
+        //     DB::raw('DATE_FORMAT(assessments.Due_date, "%M %d, %Y") as formatted_due_date')
+        // )
+        // ->get();
+
+        $discuss = Discussion::select(
+            'discussionid',
+            'lesson_id',
+            'discussion_topic',
+            DB::raw('DATE_FORMAT(created_at, "%M %d, %Y") as created')
+            )
+            ->get();
+
+        return $discuss;
     }
 
     public function showAssessment()

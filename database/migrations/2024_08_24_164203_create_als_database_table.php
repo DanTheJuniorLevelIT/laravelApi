@@ -151,7 +151,8 @@ return new class extends Migration
         Schema::create('discussion_replies', function (Blueprint $table) {
             $table->id('replyid');
             $table->unsignedBigInteger('discussionid');
-            $table->unsignedBigInteger('lrn');
+            $table->unsignedBigInteger('lrn')->nullable();
+            $table->unsignedBigInteger('adminID')->nullable();
             $table->text('reply');
             $table->timestamps();
 

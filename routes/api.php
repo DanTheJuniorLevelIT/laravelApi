@@ -16,6 +16,7 @@ Route::post('/registerLearner', [ExecuteController::class, 'registerLearner']);
 Route::post('/loginAdmin', [ExecuteController::class, 'loginAdmin']);
 Route::post('/logoutAdmin', [ExecuteController::class, 'logoutAdmin'])->middleware('auth:sanctum');
 Route::post('/loginLearner', [ExecuteController::class, 'loginLearner']);
+Route::post('/subjects/createDiscuss', [ExecuteController::class, 'createDiscussion']);
 Route::post('/subjects/create', [ExecuteController::class, 'createAssessment']);
 Route::post('/subjects/createQuestion', [ExecuteController::class, 'createQuestion']);
 Route::put('/subjects/editQuestion/{id}', [ExecuteController::class, 'editQuestion']);
@@ -23,6 +24,9 @@ Route::put('/subjects/editQuestion/{id}', [ExecuteController::class, 'editQuesti
 Route::get('/subjects/showQuestion/{id}', [ExecuteController::class, 'showQuestions']);
 Route::get('/subjects/showAll', [ExecuteController::class, 'showAll']);
 Route::get('/subjects/allSubjects/{id}', [ExecuteController::class, 'teacherAllSubjects']);
+Route::get('/subjects/discussion', [ExecuteController::class, 'showDiscussion']);
+Route::get('/subjects/discussion/replies/{discussionid}', [ExecuteController::class, 'viewDiscussionReplies']);
+Route::post('/subjects/discussion/reply', [ExecuteController::class, 'sendDiscussionReplies']);
 Route::get('/subjects/assessment', [ExecuteController::class, 'showAssessment']);
 Route::get('/subjects/showAssessment/{id}', [ExecuteController::class, 'showAssessmentDetails']);
 route::get('/subjects/getCompleted/{id}', [ExecuteController::class, 'getCompletionStats']);
