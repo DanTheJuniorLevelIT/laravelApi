@@ -132,6 +132,7 @@ return new class extends Migration
             $table->unsignedBigInteger('classid');
             $table->string('title');
             $table->text('description');
+            $table->date('schedule');
             $table->timestamps();
 
             // Foreign Key

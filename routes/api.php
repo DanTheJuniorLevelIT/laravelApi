@@ -20,6 +20,7 @@ Route::post('/subjects/createDiscuss', [ExecuteController::class, 'createDiscuss
 Route::post('/subjects/create', [ExecuteController::class, 'createAssessment']);
 Route::post('/subjects/createQuestion', [ExecuteController::class, 'createQuestion']);
 Route::put('/subjects/editQuestion/{id}', [ExecuteController::class, 'editQuestion']);
+Route::delete('/subjects/deleteQuestion/{id}', [ExecuteController::class, 'deleteQuestion']);
 // Route::get('/subjects/editQuestion/{id}', [ExecuteController::class, 'editQuestion']);
 Route::get('/subjects/showQuestion/{id}', [ExecuteController::class, 'showQuestions']);
 Route::get('/subjects/showAll', [ExecuteController::class, 'showAll']);

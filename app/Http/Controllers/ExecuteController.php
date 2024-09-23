@@ -50,12 +50,6 @@ class ExecuteController extends Controller
         }
 
         // Retrieve the subjects based on the program
-        // $subject = DB::table('classes')
-        //     ->rightJoin('subjects', 'classes.subjectid', '=', 'subjects.subjectid')
-        //     ->rightJoin('rooms', 'classes.roomid', '=', 'rooms.roomid')
-        //     ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.schedule', 'rooms.school')
-        //     ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
-        //     ->get();
         $subject = DB::table('classes')
                 ->leftJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID') // left join
                 ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid') // left join
@@ -120,18 +114,17 @@ class ExecuteController extends Controller
             'points' => $request->points,
         ]);
 
-        $options = [];
+        $options = $request->options ?? [];
 
-        // Save the options for multiple-choice questions
-        if ($request->type === 'multiple-choice' && !empty($request->options)) {
-            foreach ($request->options as $optionText) {
-                $option = Option::create([
+        if ($request->type === 'multiple-choice' && !empty($options)) {
+            foreach ($options as $optionText) {
+                Option::create([
                     'question_id' => $question->id,
                     'option_text' => $optionText,
                 ]);
-                $options[] = $optionText; // Store the options for returning in the response
             }
         }
+
 
         return response()->json([
             'success' => true,
@@ -178,19 +171,13 @@ class ExecuteController extends Controller
         $today = date('l');
 
         // Retrieve the subjects based on the program
-        // $subject = DB::table('classes')
-        //     ->rightJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID')
-        //     ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.schedule')
-        //     ->where('classes.adminid', $id) 
-        //     ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
-        //     ->get();
         $subject = DB::table('classes')
             ->leftJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID') // left join
             ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid') // left join
             ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.schedule', 'rooms.school')
             ->where('classes.adminid', $id) 
-            ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
-            // ->where('classes.schedule', 'LIKE', '%Monday%') // Filter based on today's day
+            // ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
+            ->where('classes.schedule', 'LIKE', '%Monday%') // Filter based on today's day
             ->get();
 
         $school = DB::table('classes')
@@ -198,8 +185,8 @@ class ExecuteController extends Controller
             ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid') // left join
             ->select('rooms.school')
             ->where('classes.adminid', $id) 
-            ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
-            // ->where('classes.schedule', 'LIKE', '%Thursday%') // Filter based on today's day
+            // ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
+            ->where('classes.schedule', 'LIKE', '%Monday%') // Filter based on today's day
             ->first();
 
         if ($subject) {
@@ -246,6 +233,7 @@ class ExecuteController extends Controller
         return $assess;
     }
 
+    //working
     public function showQuestions($id)
     {
         // Fetch questions and include options if the type is 'multiple-choice'
@@ -355,7 +343,7 @@ class ExecuteController extends Controller
         ];
     }
 
-
+    //Working 2
     public function showStudentAnswers($assessmentId, $lrn)
     {
         // Fetch the questions associated with the assessment
@@ -368,6 +356,7 @@ class ExecuteController extends Controller
                         ->where('lrn', $lrn)
                         ->get();
 
+        // Fetch the total score directly from the Assessment_Answer table
         $studentScore = Assessment_Answer::where('lrn', $lrn)
                         ->select('score')
                         ->first();
@@ -376,19 +365,13 @@ class ExecuteController extends Controller
         $totalScore = 0;
         $maxScore = 0;
 
-        // Merge the questions and answers, calculate scores
+        // Merge the questions and answers, and display scores
         $response = [];
         foreach ($questions as $question) {
-            // $studentScore = Assessment_Answer::where('lrn', $lrn)
-            //             ->select('score')
-            //             ->first();
             $answer = $studentAnswers->firstWhere('question_id', $question->question_id);
 
-            // Check if the student's answer is correct and assign score accordingly
-            $score = 0;
-            if ($answer && $answer->answer === $question->key_answer) {
-                $score = $question->points; // Assume each question has a `points` attribute
-            }
+            // Use the score from the answer if available, otherwise default to 0
+            $score = $answer ? $answer->score : 0;
 
             // Increment total possible score
             $maxScore += $question->points;
@@ -396,7 +379,7 @@ class ExecuteController extends Controller
             // Add to the total score
             $totalScore += $score;
 
-            // Add question, student's answer, and calculated score to the response
+            // Add question, student's answer, and score to the response
             $response[] = [
                 'question_id' => $question->question_id,
                 'question' => $question->question,
@@ -404,29 +387,22 @@ class ExecuteController extends Controller
                 'options' => $question->options, // If applicable
                 'key_answer' => $question->key_answer, // Correct answer
                 'student_answer' => $answer ? $answer->answer : null,
-                'score' => $score,
+                'score' => $score, // Use the stored score from the database
                 'points' => $question->points,
                 'max_points' => $question->points // Maximum points for the question
             ];
         }
 
         // Return the response with individual questions, student's answers, and total score
-        // return response()->json([
-        //     'status' => 'success',
-        //     'data' => $response,
-        //     'studentScore' => $studentScore,
-        //     'total_score' => $totalScore,
-        //     'max_score' => $maxScore,
-        // ]);
-
         return [
             'status' => 'success',
             'data' => $response,
-            'studentScore' => $studentScore,
-            'total_score' => $totalScore,
-            'max_score' => $maxScore,
-         ];
+            'studentScore' => $studentScore, // Total score from Assessment_Answer table
+            'total_score' => $totalScore, // Calculated total score
+            'max_score' => $maxScore, // Total maximum score for the assessment
+        ];
     }
+
 
 
 
@@ -464,22 +440,33 @@ class ExecuteController extends Controller
             $totalScore = 0;
             $completed = true;
 
-            foreach ($questions as $question) {
-                // Find the student's answer to the question
-                $answer = Answer::where('lrn', $learner->lrn)
-                    ->where('question_id', $question->question_id)
-                    ->first();
-
-                if ($answer) {
-                    // Check if the answer is correct
-                    if ($answer->answer == $question->key_answer) {
-                        $totalScore += $question->points;
+                foreach ($questions as $question) {
+                    // Find the student's answer to the question
+                    $answer = Answer::where('lrn', $learner->lrn)
+                        ->where('question_id', $question->question_id)
+                        ->first();
+            
+                    if ($answer) {
+                        // Check if the answer matches the key answer and assign points
+                        if ($answer->answer == $question->key_answer) {
+                            $answer->score = $question->points; // Save the points to the answer
+                            // $answer->save(); // Save the updated answer with the score
+                            $answer->update(['score' => $question->points]);
+                            // $totalScore += $question->points;
+                        }
+                    } else {
+                        // Mark as incomplete if an answer is missing
+                        $completed = false;
                     }
-                } else {
-                    // Mark as incomplete if an answer is missing
-                    $completed = false;
                 }
-            }
+
+            $totalScore = Answer::where('lrn', $learner->lrn)
+                ->whereIn('question_id', function($query) use ($assessment_id) {
+                    $query->select('question_id')
+                        ->from('questions')
+                        ->where('assessment_id', $assessment_id);
+                })
+                ->sum('score');
 
             // Save the score in the Assessment_Answer table
             Assessment_Answer::updateOrCreate(
@@ -498,7 +485,7 @@ class ExecuteController extends Controller
         ];
     }
 
-    //working
+    //working 2
     public function submitScore(Request $request) 
     {
         // Validate the incoming data
@@ -509,43 +496,39 @@ class ExecuteController extends Controller
             'score' => 'required|numeric|min:0',
         ]);
 
-        // Find the record of the student's answer for this question
-        $answer = Assessment_Answer::where('assessmentid', $request->assessment_id)
-                                    ->where('lrn', $request->learner_id)
-                                    // ->where('question_id', $request->question_id)
-                                    ->first();
+        // Find the existing answer record for the specific question
+        $answer = Answer::where('question_id', $request->question_id)
+                        ->where('lrn', $request->learner_id)
+                        ->first();
 
-        if ($answer) {
-            // Add the essay score to the existing score (assuming `score` holds the points)
-            $answer->score += $request->score;  // Add points for the essay
-            $answer->save();
+        // Find the total score record for the assessment and learner
+        $assessmentAnswer = Assessment_Answer::where('assessmentid', $request->assessment_id)
+                                            ->where('lrn', $request->learner_id)
+                                            ->first();
 
-            // Optionally, recalculate the total score for the assessment
-            $totalScore = Assessment_Answer::where('assessmentid', $request->assessment_id)
-                ->where('lrn', $request->learner_id)
-                ->sum('score');
+        if ($answer && $assessmentAnswer) {
+            // Track the previous score
+            $previousScore = $answer->score;
+
+            // Update the answer's score with the new score from the request
+            $answer->update(['score' => $request->score]);
+
+            // Update the total score by adjusting it with the difference between old and new scores
+            $scoreDifference = $request->score - $previousScore;
+            $assessmentAnswer->score += $scoreDifference;
+            $assessmentAnswer->save();
 
             return response()->json([
                 'status' => 'success', 
                 'message' => 'Score updated successfully',
-                'total_score' => $totalScore
+                'total_score' => $assessmentAnswer->score
             ]);
         } else {
-            return response()->json(['status' => 'error', 'message' => 'Answer not found'], 404);
+            return response()->json(['status' => 'error', 'message' => 'Answer or assessment record not found'], 404);
         }
     }
 
     // Fetch discussion replies based on discussionID
-    //working
-    // public function viewDiscussionReplies($discussionid)
-    // {
-    //     $replies = Discussion_Reply::where('discussionid', $discussionid)
-    //         ->orderBy('created_at', 'asc')
-    //         ->get();
-
-    //     return response()->json($replies);
-    // }
-
     public function viewDiscussionReplies($discussionid)
     {
         $replies = Discussion_Reply::where('discussionid', $discussionid)
@@ -649,10 +632,17 @@ class ExecuteController extends Controller
         }
 
         // Fetch updated options
-        $options = [];
-        if ($request->type === 'multiple-choice') {
-            $options = Option::where('question_id', $question->question_id)->pluck('option_text');
+        $options = $request->options ?? [];
+
+        if ($request->type === 'multiple-choice' && !empty($options)) {
+            foreach ($options as $optionText) {
+                Option::create([
+                    'question_id' => $question->id,
+                    'option_text' => $optionText,
+                ]);
+            }
         }
+
 
         // Return the updated question
         return response()->json([
@@ -677,6 +667,14 @@ class ExecuteController extends Controller
         //
     }
 
+    public function deleteQuestion($id)
+    {
+        $question = Question::where('question_id', $id)
+                            ->delete();
+        
+        return response()->json(['status' => 'Deleted successfully', 'response' => $question]);
+    }
+
     public function showAll()
     {
         //
@@ -699,22 +697,12 @@ class ExecuteController extends Controller
             ->where('classes.adminid', $id) 
             ->get();
 
-        return $subject;;
+        return $subject;
     }
 
     public function showDiscussion()
     {
         //
-        // $assess = DB::table('discussions')
-        // ->select(
-        //     'assessments.assessmentID',
-        //     'assessments.Title',
-        //     'assessments.Instruction',
-        //     'assessments.Description',
-        //     DB::raw('DATE_FORMAT(assessments.Due_date, "%M %d, %Y") as formatted_due_date')
-        // )
-        // ->get();
-
         $discuss = Discussion::select(
             'discussionid',
             'lesson_id',
