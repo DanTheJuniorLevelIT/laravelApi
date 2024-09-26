@@ -154,7 +154,8 @@ class ExecuteController extends Controller
                 ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule')
                 // ->where('subjects.subjectID', '=', $id)
                 ->where('classes.classid', '=', $id)
-                ->get();
+                // ->get();
+                ->first();
 
         if ($subject) {
             return response()->json($subject);
