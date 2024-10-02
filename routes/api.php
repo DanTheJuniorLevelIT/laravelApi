@@ -19,9 +19,10 @@ Route::post('/loginLearner', [ExecuteController::class, 'loginLearner']);
 Route::post('/subjects/createDiscuss', [ExecuteController::class, 'createDiscussion']);
 Route::post('/subjects/create', [ExecuteController::class, 'createAssessment']);
 Route::post('/subjects/createQuestion', [ExecuteController::class, 'createQuestion']);
+Route::post('/subjects/createAnnouncement', [ExecuteController::class, 'createAnnouncement']);
 Route::put('/subjects/editQuestion/{id}', [ExecuteController::class, 'editQuestion']);
 Route::delete('/subjects/deleteQuestion/{id}', [ExecuteController::class, 'deleteQuestion']);
-// Route::get('/subjects/editQuestion/{id}', [ExecuteController::class, 'editQuestion']);
+Route::get('/subjects/showAnnouncement/{id}', [ExecuteController::class, 'showAnnouncement']);
 Route::get('/subjects/showQuestion/{id}', [ExecuteController::class, 'showQuestions']);
 Route::get('/subjects/showAll', [ExecuteController::class, 'showAll']);
 Route::get('/subjects/allSubjects/{id}', [ExecuteController::class, 'teacherAllSubjects']);
@@ -32,8 +33,6 @@ Route::get('/subjects/assessment', [ExecuteController::class, 'showAssessment'])
 Route::get('/subjects/showAssessment/{id}', [ExecuteController::class, 'showAssessmentDetails']);
 route::get('/subjects/getCompleted/{id}', [ExecuteController::class, 'getCompletionStats']);
 Route::get('/subjects/students/{id}/{assid}', [ExecuteController::class, 'showStudents']);
-//1st approach
-// Route::get('/subjects/autocheck/{id}/{assid}', [ExecuteController::class, 'autoCheck']);
 Route::post('/subjects/autocheck/{id}/{assid}', [ExecuteController::class, 'autoCheck']);
 Route::post('/subjects/submitScore', [ExecuteController::class, 'submitScore']);
 Route::get('/subjects/checking/{id}/{lrnid}', [ExecuteController::class, 'showStudentAnswers']);

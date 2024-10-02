@@ -10,6 +10,7 @@ use App\Models\Discussion_Reply;
 use App\Http\Requests\StoreExecuteRequest;
 use App\Http\Requests\UpdateExecuteRequest;
 use App\Models\Admin;
+use App\Models\Announcement;
 use App\Models\Learner;
 use App\Models\Question;
 use App\Models\Option;
@@ -141,10 +142,70 @@ class ExecuteController extends Controller
         ], 201);
     }
 
+    public function createAnnouncement(Request $request)
+    {
+        $request->validate([
+            'subjectID' => 'required',
+            'title' => 'required|string',
+            'instruction' => 'required|string'
+        ]);
+
+        // Check if an announcement for the subjectID exists
+        $announcement = Announcement::where('subjectid', $request->subjectID)->first();
+
+        if ($announcement) {
+            // Update existing announcement
+            Announcement::where('subjectid', $request->subjectID)->update([
+                'title' => $request->title,
+                'instruction' => $request->instruction
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Announcement updated successfully',
+                'announcement' => [
+                    'subjectID' => $announcement->subjectid,
+                    'title' => $announcement->title,
+                    'instruction' => $announcement->instruction
+                ]
+            ], 200);
+        } else {
+            // Create new announcement
+            $announce = Announcement::create([
+                'subjectid' => $request->subjectID,
+                'title' => $request->title,
+                'instruction' => $request->instruction
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Announcement created successfully',
+                'announcement' => [
+                    'subjectID' => $announce->subjectid,
+                    'title' => $announce->title,
+                    'instruction' => $announce->instruction
+                ]
+            ], 201);
+        }
+    }
+
+
 
     /**
      * Display the specified resource.
      */
+
+    public function showAnnouncement($id)
+    {
+        $announce = DB::table('subjects')
+                        ->rightJoin('announcements', 'subjects.subjectid', '=', 'announcements.subjectid')
+                        ->where('announcements.subjectid', $id)
+                        ->select('announcements.announceid', 'announcements.title', 'announcements.instruction')
+                        ->first();
+
+        // return $announce;
+        return response()->json($announce);
+    }
     // public function show(Execute $id)
     public function show($id)
     {
@@ -152,14 +213,11 @@ class ExecuteController extends Controller
         $subject = DB::table('classes')
                 ->rightJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID')
                 ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule')
-                // ->where('subjects.subjectID', '=', $id)
                 ->where('classes.classid', '=', $id)
-                // ->get();
                 ->first();
 
         if ($subject) {
             return response()->json($subject);
-            // return $subject;
         } else {
             return response()->json(['message' => 'Subject not found'], 404);
         }
@@ -177,8 +235,7 @@ class ExecuteController extends Controller
             ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid') // left join
             ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.schedule', 'rooms.school')
             ->where('classes.adminid', $id) 
-            // ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
-            ->where('classes.schedule', 'LIKE', '%Monday%') // Filter based on today's day
+            ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
             ->get();
 
         $school = DB::table('classes')
@@ -186,13 +243,10 @@ class ExecuteController extends Controller
             ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid') // left join
             ->select('rooms.school')
             ->where('classes.adminid', $id) 
-            // ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
-            ->where('classes.schedule', 'LIKE', '%Monday%') // Filter based on today's day
+            ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
             ->first();
 
         if ($subject) {
-            // return response()->json($subject);
-            // return $subject;
             return [
                 'subject' => $subject,
                 'school' => $school
@@ -211,11 +265,8 @@ class ExecuteController extends Controller
             ->get();
 
         if ($modules) {
-            // return response()->json($subject);
-            // return $subject;
             return [
                 'modules' => $modules
-                // 'school' => $school
             ];
         } else {
             return response()->json(['message' => 'Modules not found'], 404);
@@ -229,12 +280,10 @@ class ExecuteController extends Controller
             ->select('assessments.assessmentid', 'assessments.title', 'assessments.instruction', 'assessments.description')
             ->where('assessments.assessmentid', $id)
             ->first();
-            // ->get();
 
         return $assess;
     }
 
-    //working
     public function showQuestions($id)
     {
         // Fetch questions and include options if the type is 'multiple-choice'
@@ -404,10 +453,6 @@ class ExecuteController extends Controller
         ];
     }
 
-
-
-
-    //2nd approach
     public function autoCheck($classid, $assessment_id)
     {
         // Get the total number of questions for the assessment
@@ -486,7 +531,6 @@ class ExecuteController extends Controller
         ];
     }
 
-    //working 2
     public function submitScore(Request $request) 
     {
         // Validate the incoming data
@@ -681,7 +725,6 @@ class ExecuteController extends Controller
         //
         $subject = DB::table('classes')
             ->rightJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID')
-            // ->select('subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule')
             ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule')
             ->get();
         return $subject;
