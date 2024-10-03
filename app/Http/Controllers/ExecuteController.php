@@ -365,7 +365,7 @@ class ExecuteController extends Controller
         $learnersScores = Roster::where('classid', $classid)
             ->leftJoin('learners', 'rosters.lrn', '=', 'learners.lrn')
             ->leftJoin('assessment_answers', 'rosters.lrn', '=', 'assessment_answers.lrn')
-            ->select('learners.lrn', 'learners.firstname', 'learners.lastname', 'assessment_answers.score')
+            ->select('learners.lrn', 'learners.firstname', 'learners.lastname', 'assessment_answers.score', 'assessment_answers.file')
             ->get();
 
         // Check completion status for each student
@@ -408,7 +408,7 @@ class ExecuteController extends Controller
 
         // Fetch the total score directly from the Assessment_Answer table
         $studentScore = Assessment_Answer::where('lrn', $lrn)
-                        ->select('score')
+                        ->select('score', 'file')
                         ->first();
 
         // Variables to keep track of the total score and possible maximum score
@@ -448,6 +448,7 @@ class ExecuteController extends Controller
             'status' => 'success',
             'data' => $response,
             'studentScore' => $studentScore, // Total score from Assessment_Answer table
+            'studentFile' => $studentScore->file, // File from Assessment_Answer table
             'total_score' => $totalScore, // Calculated total score
             'max_score' => $maxScore, // Total maximum score for the assessment
         ];
@@ -829,9 +830,11 @@ class ExecuteController extends Controller
         };
         $token = $user->createToken($user->lastname);
         $adminid = $user->adminID;
+        $role = $user->role;
 
         return [
             'adminid' => $adminid,
+            'role' => $role,
             'user' => $user,
             'token' => $token->plainTextToken
         ];
