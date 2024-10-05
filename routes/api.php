@@ -37,6 +37,7 @@ Route::middleware(['auth:sanctum'])->group(function(){
         Route::get('/subjects/students/{id}/{assid}', [ExecuteController::class, 'showStudents']);
         Route::post('/subjects/autocheck/{id}/{assid}', [ExecuteController::class, 'autoCheck']);
         Route::post('/subjects/submitScore', [ExecuteController::class, 'submitScore']);
+        Route::post('/subjects/updateScore', [ExecuteController::class, 'updateAssessScore']);
         Route::get('/subjects/checking/{id}/{lrnid}', [ExecuteController::class, 'showStudentAnswers']);
         Route::get('/modules/{id}', [ExecuteController::class, 'showSubModules']);
         Route::get('/subjects/{id}', [ExecuteController::class, 'show']);

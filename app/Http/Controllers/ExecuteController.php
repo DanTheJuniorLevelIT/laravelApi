@@ -379,9 +379,12 @@ class ExecuteController extends Controller
                 })
                 ->count();
 
+            // Check if the student has uploaded a file
+            $fileUploaded = !is_null($learner->file);
+
             // Check if the student has completed the assessment
-            $learner->completed = ($answersCount == $totalQuestions);
-            
+            $learner->completed = ($answersCount == $totalQuestions || $fileUploaded);
+                
             return $learner;
         });
 
@@ -408,7 +411,7 @@ class ExecuteController extends Controller
 
         // Fetch the total score directly from the Assessment_Answer table
         $studentScore = Assessment_Answer::where('lrn', $lrn)
-                        ->select('score', 'file')
+                        ->select('answerid', 'score', 'file')
                         ->first();
 
         // Variables to keep track of the total score and possible maximum score
@@ -448,7 +451,8 @@ class ExecuteController extends Controller
             'status' => 'success',
             'data' => $response,
             'studentScore' => $studentScore, // Total score from Assessment_Answer table
-            'studentFile' => $studentScore->file, // File from Assessment_Answer table
+            'answerid' => $studentScore->answerid,
+            'studentFile' => $studentScore->file ? url('storage/Files/' . $studentScore->file) : null, // Generate full URL File from Assessment_Answer table
             'total_score' => $totalScore, // Calculated total score
             'max_score' => $maxScore, // Total maximum score for the assessment
         ];
@@ -562,6 +566,43 @@ class ExecuteController extends Controller
             // Update the total score by adjusting it with the difference between old and new scores
             $scoreDifference = $request->score - $previousScore;
             $assessmentAnswer->score += $scoreDifference;
+            $assessmentAnswer->save();
+
+            return response()->json([
+                'status' => 'success', 
+                'message' => 'Score updated successfully',
+                'total_score' => $assessmentAnswer->score
+            ]);
+        } else {
+            return response()->json(['status' => 'error', 'message' => 'Answer or assessment record not found'], 404);
+        }
+    }
+
+    public function updateAssessScore(Request $request) 
+    {
+        // Validate the incoming data
+        $validated = $request->validate([
+            'assessment_id' => 'required|integer',
+            'learner_id' => 'required|string',
+            'answerid' => 'required|integer',
+            'score' => 'required|numeric|min:0',
+        ]);
+
+        // Find the total score record for the assessment and learner
+        $assessmentAnswer = Assessment_Answer::where('assessmentid', $request->assessment_id)
+                                            ->where('answerid', $request->answerid)
+                                            ->first();
+
+        if ($assessmentAnswer) {
+            // Track the previous score
+            $previousScore = $assessmentAnswer->score;
+
+            // Update the answer's score with the new score from the request
+            $assessmentAnswer->update(['score' => $request->score]);
+
+            // Update the total score by adjusting it with the difference between old and new scores
+            // $scoreDifference = $request->score - $previousScore;
+            // $assessmentAnswer->score += $scoreDifference;
             $assessmentAnswer->save();
 
             return response()->json([
