@@ -15,7 +15,7 @@ class Student
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if($request->user()->role == "Student")
+        if($request->user()->lrn != null)
         {
             return $next($request);
         }
