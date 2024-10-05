@@ -481,8 +481,11 @@ class ExecuteController extends Controller
                 })
                 ->count();
 
+            // Check if the student has uploaded a file
+            $fileUploaded = !is_null($learner->file);
+
             // Check if the student has completed the assessment
-            $learner->completed = ($answersCount == $totalQuestions);
+            $learner->completed = ($answersCount == $totalQuestions || $fileUploaded);
             
             return $learner;
         });
