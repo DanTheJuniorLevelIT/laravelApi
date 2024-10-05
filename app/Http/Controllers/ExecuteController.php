@@ -331,22 +331,34 @@ class ExecuteController extends Controller
 
     public function getCompletionStats($id)
     {
-        // Get total students in the assessment
+        // Get the total number of students in the assessment (for the class or course)
         $totalStudents = Learner::count();
 
-        // Get students who have submitted their answers
-        $completedStudents = Answer::whereIn('question_id', function($query) use ($id) {
+        // Get distinct students who submitted answers to the assessment
+        $studentsWithAnswers = Answer::whereIn('question_id', function($query) use ($id) {
             $query->select('question_id')
                 ->from('questions')
                 ->where('assessment_id', $id);
-        })->distinct('lrn')->count('lrn'); // Count distinct learners who answered
+        })->distinct('lrn')->pluck('lrn'); // Get distinct learner IDs (lrn) who submitted answers
 
-        // Return the result
+        // Get distinct students who uploaded a file in the assessment
+        $studentsWithFiles = Assessment_Answer::where('assessmentid', $id)
+                                ->whereNotNull('file') // Check if the file column is not null
+                                ->distinct('lrn')->pluck('lrn'); // Get distinct learner IDs (lrn) who uploaded files
+
+        // Merge both collections to get all unique learners
+        $allCompletedStudents = $studentsWithAnswers->merge($studentsWithFiles)->unique();
+
+        // Count the total number of distinct learners who either submitted answers or uploaded files
+        $completedStudentsCount = $allCompletedStudents->count();
+
+        // Return the response with both the number of completed students and total students
         return response()->json([
-            'completed' => $completedStudents,
+            'completed' => $completedStudentsCount,
             'total' => $totalStudents
         ], 200);
     }
+
 
     public function showStudents($classid, $assessment_id)
     {
@@ -466,8 +478,9 @@ class ExecuteController extends Controller
 
         // Get learners from the roster of a class
         $learners = Roster::where('classid', $classid)
-            ->join('learners', 'rosters.lrn', '=', 'learners.lrn')
-            ->select('learners.lrn', 'learners.firstname', 'learners.lastname')
+            ->leftJoin('learners', 'rosters.lrn', '=', 'learners.lrn')
+            ->leftJoin('assessment_answers', 'rosters.lrn', '=', 'assessment_answers.lrn')
+            ->select('learners.lrn', 'learners.firstname', 'learners.lastname', 'assessment_answers.score', 'assessment_answers.file')
             ->get();
 
         // Check completion status for each student
