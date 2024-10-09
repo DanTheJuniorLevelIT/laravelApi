@@ -504,6 +504,11 @@ class ExecuteController extends Controller
         });
 
         foreach ($learners as $learner) {
+            // If the learner has uploaded a file, skip score calculation
+            if (!is_null($learner->file)) {
+                continue;  // Skip to the next learner
+            }
+
             $totalScore = 0;
             $completed = true;
 
@@ -700,9 +705,10 @@ class ExecuteController extends Controller
         $request->validate([
             'question' => 'required|string',
             'type' => 'required|string',
-            'key_answer' => 'required|string',
+            // Conditionally require 'key_answer' if the type is not 'Essay'
+            'key_answer' => $request->type !== 'Essay' ? 'required|string' : 'nullable|string',
             'points' => 'required|integer',
-            'options' => 'array', // Only required if multiple-choice
+            'option' => 'array', // Only required if multiple-choice
         ]);
 
         // Update the question
@@ -716,48 +722,59 @@ class ExecuteController extends Controller
         ]);
 
         // Handle options for multiple-choice questions
-        if ($request->type === 'multiple-choice') {
-            // Delete existing options
-            DB::table('options')->where('question_id', $id)->delete();
+        if ($request->type === 'multiple-choice' && !empty($request->options)) {
+            $optionIds = [];
 
-            // Add new options
-            if (!empty($request->options)) {
-                foreach ($request->options as $optionText) {
-                    DB::table('options')->insert([
+            foreach ($request->options as $option) {
+                if (is_array($option) && isset($option['option_id'])) {
+                    // Update existing options (associative array)
+                    DB::table('options')
+                        ->where('option_id', $option['option_id'])
+                        ->update([
+                            'option_text' => $option['option_text']
+                        ]);
+                    $optionIds[] = $option['option_id'];  // Track existing option IDs
+                } elseif (is_string($option)) {
+                    // Insert new options if it's just a string (option text)
+                    $newOptionId = DB::table('options')->insertGetId([
                         'question_id' => $id,
-                        'option_text' => $optionText,
+                        'option_text' => $option,
                     ]);
+                    $optionIds[] = $newOptionId;  // Track new option IDs
                 }
             }
+
+            // Delete options that were not included in the update
+            DB::table('options')
+                ->where('question_id', $id)
+                ->whereNotIn('option_id', $optionIds)
+                ->delete();
         } else {
-            // Delete options if not multiple-choice
+            // Delete all options if the type is not multiple-choice
             DB::table('options')->where('question_id', $id)->delete();
         }
 
-        // Fetch updated options
-        $options = $request->options ?? [];
-
-        if ($request->type === 'multiple-choice' && !empty($options)) {
-            foreach ($options as $optionText) {
-                Option::create([
-                    'question_id' => $question->id,
-                    'option_text' => $optionText,
-                ]);
-            }
-        }
+        // Fetch the updated question with options
+        $updatedQuestion = DB::table('questions')
+            ->where('question_id', $id)
+            ->first();
+        
+        $updatedOptions = DB::table('options')
+            ->where('question_id', $id)
+            ->get();
 
 
         // Return the updated question
         return response()->json([
             'message' => 'Question updated successfully',
             'question' => [
-                'question_id' => $question->question_id,
-                'assessment_id' => $question->assessment_id,
-                'question' => $question->question,
-                'type' => $question->type,
-                'key_answer' => $question->key_answer,
-                'points' => $question->points,
-                'options' => $options,
+            'question_id' => $updatedQuestion->question_id,
+            'assessment_id' => $updatedQuestion->assessment_id,
+            'question' => $updatedQuestion->question,
+            'type' => $updatedQuestion->type,
+            'key_answer' => $updatedQuestion->key_answer,
+            'points' => $updatedQuestion->points,
+            'options' => $updatedOptions,
             ]
         ], 200);
     }
