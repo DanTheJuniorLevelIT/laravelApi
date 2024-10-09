@@ -203,8 +203,18 @@ class ExecuteController extends Controller
                         ->select('announcements.announceid', 'announcements.title', 'announcements.instruction')
                         ->first();
 
-        // return $announce;
-        return response()->json($announce);
+        $announceid = DB::table('subjects')
+                        ->rightJoin('announcements', 'subjects.subjectid', '=', 'announcements.subjectid')
+                        ->where('announcements.subjectid', $id)
+                        ->select('announcements.subjectid')
+                        ->value('subjectid');
+
+        return [
+            'announce' => $announce,
+            'announceid' => (int)$announceid,
+        ];
+        // return response()->json($announce);
+
     }
     // public function show(Execute $id)
     public function show($id)
