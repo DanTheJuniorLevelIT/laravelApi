@@ -12,6 +12,7 @@ class Module extends Model
         'module_id',
         'classid',
         'title',
-        'description'
+        'description',
+        'date'
     ];
 }

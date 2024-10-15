@@ -11,6 +11,9 @@ use App\Models\Admin;
 use App\Models\Learner;
 use App\Models\Question;
 use App\Models\Option;
+use App\Models\Module;
+use App\Models\Lesson;
+use App\Models\Media;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -527,4 +530,195 @@ class ExecuteController extends Controller
             'message' => 'You are Logged out'
         ];
     }
+
+    //create module
+    public function createModule(Request $request)
+    {
+        $validatedData = $request->validate([
+            'classid' => 'required|integer',
+            'title' => 'required|string|max:255',
+            'description' => 'required|string|max:255',
+            'date' => 'required|string|max:255',
+        ]);
+
+        $modules = Module::create($validatedData);
+        // $allModules = Module::all();
+        return response()->json($modules);
+
+    }
+
+    public function showModulesDetails($id)
+{
+    // $mods = DB::table('modules')
+    // ->select('modules.*')
+    // ->where('modules.classid', $id)
+    // ->get(); // Fetches all matching modules
+    $mods = Module::where('classid', $id)
+                    ->get(); // Fetches all matching modules
+
+    return response()->json($mods);
+}
+
+//createLesson
+//create module
+public function createLesson(Request $request)
+{
+    $validatedData = $request->validate([
+        'modules_id' => 'required|integer',
+        'topic_title' => 'required|string|max:255',
+        'lesson' => 'required|string|max:255',
+        'file' => 'nullable|file|max:2048' 
+    ]);
+
+    if ($request->hasFile('file')) {
+        $file = $request->file('file');
+
+        $originalFileName = time() . '_' . $file->getClientOriginalName();
+
+        $filePath = $file->storeAs('lesson file', $originalFileName, 'public');
+        
+        $validatedData['file'] = $filePath;
+    }
+
+    $lesson = Lesson::create($validatedData);
+
+    return response()->json($lesson);
+}
+
+public function showLessonDetails($id)
+{
+    // $mods = DB::table('modules')
+    // ->select('modules.*')
+    // ->where('modules.classid', $id)
+    // ->get(); // Fetches all matching modules
+    // $les = Lesson::where('modules_id', $id)
+                    // ->get(); 
+                    
+    // $les = DB::table('lessons')
+    //         ->leftJoin('media','lessons.lesson_id','=','media.lesson_id')
+    //         ->select('lessons.*','media.filename')
+    //         ->where('lessons.modules_id',$id)
+    //         ->get(); // Fetches all matching modules
+
+    //     return $les;
+
+        $lessons = DB::table('lessons')
+        ->leftJoin('media', 'lessons.lesson_id', '=', 'media.lesson_id')
+        ->select(
+            'lessons.lesson_id',
+            'lessons.modules_id',
+            'lessons.topic_title',
+            'lessons.lesson',
+            'lessons.handout',
+            'lessons.file',
+            DB::raw('GROUP_CONCAT(media.filename) as media_files') // Concatenate media filenames
+        )
+        ->where('lessons.modules_id', $id)
+        ->groupBy(
+            'lessons.lesson_id',
+            'lessons.modules_id',
+            'lessons.topic_title',
+            'lessons.lesson',
+            'lessons.handout',
+            'lessons.file'
+        )  // Add all selected columns to GROUP BY
+        ->get();
+
+    return $lessons;
+
+}
+
+public function getlessonid($id)
+{
+    $les = DB::table('lessons')
+                    ->select('lessons.*')
+                    ->where('lessons.lesson_id',$id)
+                    ->first(); // Fetches all matching modules
+
+    return $les;
+}
+
+public function updateLessonInfo(Request $request, $id) {
+    \Log::info('Received Lesson ID for update: ' . $id);  // Check if the ID is correctly passed
+
+    // Check if the ID is null or invalid
+    if (is_null($id)) {
+        return response()->json(['message' => 'Lesson ID is missing'], 400);
+    }
+
+    // Validate the request
+    $validatedData = $request->validate([
+        'topic_title' => 'required|string|max:255',
+        'lesson' => 'required|string|max:255',
+    ]);
+
+    // Fetch the lesson by lesson_id
+    $lesson = Lesson::where('lesson_id', $id)->firstOrFail();
+
+    // Update lesson data
+    $lesson->fill($validatedData);
+    $lesson->save();
+
+    return response()->json(['message' => 'Lesson updated successfully']);
+}
+
+public function deleteLesson($id)
+{
+    $lesson = Lesson::find($id);
+
+    if ($lesson) {
+        $lesson->delete();
+        return response()->json(['message' => 'Lesson deleted successfully'], 200);
+    } else {
+        return response()->json(['message' => 'Lesson not found'], 404);
+    }
+}
+
+public function uploadMedia(Request $request)
+{
+    // Validate the request
+    $request->validate([
+        'lesson_id' => 'required',
+        'file' => 'required|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:2048'  // Restrict file types and size
+    ]);
+
+    // Store the file
+    if ($request->hasFile('file')) {
+        $file = $request->file('file');
+        $filename = time() . '_' . $file->getClientOriginalName();
+
+        // if ($request->hasFile('file') == 'file'=> )
+        $filePath = $file->storeAs('uploads', $filename, 'public');
+
+        // Save file information to the database
+        $media = new Media();
+        $media->lesson_id = $request->input('lesson_id');
+        $media->uploader_id = null;
+        $media->type = $file->getClientOriginalExtension();
+        $media->filename = $filePath;
+        $media->save();
+
+        return response()->json(['message' => 'File uploaded successfully', 'file' => $filePath], 200);
+    }
+
+    return response()->json(['message' => 'File not uploaded'], 400);
+}
+
+public function deleteFile($id)
+{
+    $lesson = Lesson::find($id);
+    if ($lesson) {
+        // Update the file field to null
+        $lesson->file = null;
+        $lesson->save();
+
+        return response()->json(['message' => 'File deleted successfully'], 200);
+    } else {
+        return response()->json(['message' => 'Lesson not found'], 404);
+    }
+}
+
+
+
+
 }
