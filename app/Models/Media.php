@@ -5,14 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Module extends Model
+class Media extends Model
 {
     use HasFactory;
+    protected $primaryKey = 'media_id';
     protected $fillable = [
-        'module_id',
-        'classid',
-        'title',
-        'description',
-        'date'
+        'media_id',
+        'uploader_id',
+        'lesson_id',
+        'type',
+        'filename'
     ];
 }

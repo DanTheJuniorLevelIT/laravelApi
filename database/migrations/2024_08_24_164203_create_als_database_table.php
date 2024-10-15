@@ -132,7 +132,7 @@ return new class extends Migration
             $table->unsignedBigInteger('classid');
             $table->string('title');
             $table->text('description');
-            $table->date('schedule');
+            $table->date('date')->nullable();
             $table->timestamps();
 
             // Foreign Key
@@ -242,7 +242,7 @@ return new class extends Migration
         Schema::create('media', function (Blueprint $table) {
             $table->id('media_id');
             $table->unsignedBigInteger('lesson_id');
-            $table->unsignedBigInteger('uploader_id');
+            $table->unsignedBigInteger('uploader_id')->nullable();
             $table->string('type');
             $table->string('filename');
             $table->timestamps();

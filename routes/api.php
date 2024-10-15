@@ -41,6 +41,17 @@ Route::middleware(['auth:sanctum'])->group(function(){
         Route::get('/subjects/checking/{id}/{lrnid}', [ExecuteController::class, 'showStudentAnswers']);
         Route::get('/modules/{id}', [ExecuteController::class, 'showSubModules']);
         Route::get('/subjects/{id}', [ExecuteController::class, 'show']);
+        // zaina works
+        Route::post('/modules/create', [ExecuteController::class, 'createModule']);
+        Route::get('/modules/showModules/{id}', [ExecuteController::class, 'showModulesDetails']);
+        Route::post('/modules/createLesson', [ExecuteController::class, 'createLesson']);
+        Route::get('/modules/showLessons/{id}', [ExecuteController::class, 'showLessonDetails']);
+        Route::get('/modules/getlessonid/{id}', [ExecuteController::class, 'getlessonid']);
+        Route::patch('/modules/updateLessonInfo/{id}', [ExecuteController::class, 'updateLessonInfo']);
+        Route::delete('modules/deleteLesson/{id}', [ExecuteController::class, 'deleteLesson']);
+        Route::post('modules/uploadMedia', [ExecuteController::class, 'uploadMedia']);
+        Route::delete('/modules/deleteFile/{id}', [ExecuteController::class, 'deleteFile']);
+        Route::delete('/modules/deleteMediaFile/{id}', [ExecuteController::class, 'deleteMediaFile']);
     });
 
     Route::middleware(['admin'])->group(function(){
