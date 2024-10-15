@@ -1095,8 +1095,8 @@ public function updateLessonInfo(Request $request, $id) {
 
     // Validate the request
     $validatedData = $request->validate([
-        'topic_title' => 'required|string|max:255',
-        'lesson' => 'required|string|max:255',
+        'topic_title' => 'required|string',
+        'lesson' => 'required|string',
     ]);
 
     // Fetch the lesson by lesson_id

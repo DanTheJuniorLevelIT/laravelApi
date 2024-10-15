@@ -191,7 +191,7 @@ return new class extends Migration
         Schema::create('questions', function (Blueprint $table) {
             $table->id('question_id');
             $table->unsignedBigInteger('assessment_id');
-            $table->string('question');
+            $table->longText('question');
             $table->string('type');
             $table->string('key_answer')->nullable();
             $table->integer('points');
