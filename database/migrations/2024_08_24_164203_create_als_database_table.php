@@ -132,6 +132,7 @@ return new class extends Migration
             $table->unsignedBigInteger('classid');
             $table->string('title');
             $table->text('description');
+            $table->date('schedule');
             $table->timestamps();
 
             // Foreign Key
@@ -151,7 +152,8 @@ return new class extends Migration
         Schema::create('discussion_replies', function (Blueprint $table) {
             $table->id('replyid');
             $table->unsignedBigInteger('discussionid');
-            $table->unsignedBigInteger('lrn');
+            $table->unsignedBigInteger('lrn')->nullable();
+            $table->unsignedBigInteger('adminID')->nullable();
             $table->text('reply');
             $table->timestamps();
 
@@ -191,7 +193,7 @@ return new class extends Migration
             $table->unsignedBigInteger('assessment_id');
             $table->string('question');
             $table->string('type');
-            $table->string('key_answer');
+            $table->string('key_answer')->nullable();
             $table->integer('points');
             $table->timestamps();
 
