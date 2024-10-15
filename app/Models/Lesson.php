@@ -11,7 +11,7 @@ class Lesson extends Model
     protected $primaryKey = 'lesson_id';
     protected $fillable = [
         'lesson_id',
-        'module_id',
+        'modules_id',
         'topic_title',
         'lesson',
         'handout',
