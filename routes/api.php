@@ -25,6 +25,7 @@ Route::middleware(['auth:sanctum'])->group(function(){
         Route::post('/subjects/createAnnouncement', [ExecuteController::class, 'createAnnouncement']);
         Route::put('/subjects/editQuestion/{id}', [ExecuteController::class, 'editQuestion']);
         Route::delete('/subjects/deleteQuestion/{id}', [ExecuteController::class, 'deleteQuestion']);
+        Route::delete('modules/deleteAssessment/{id}', [ExecuteController::class, 'deleteAssessment']);
         Route::get('/subjects/showAnnouncement/{id}', [ExecuteController::class, 'showAnnouncement']);
         Route::get('/subjects/showQuestion/{id}', [ExecuteController::class, 'showQuestions']);
         Route::get('/subjects/showAll', [ExecuteController::class, 'showAll']);

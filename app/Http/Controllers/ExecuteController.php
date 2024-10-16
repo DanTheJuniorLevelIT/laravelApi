@@ -509,11 +509,21 @@ class ExecuteController extends Controller
         $totalQuestions = Question::where('assessment_id', $assessment_id)->count();
 
         // Get learners from the roster of a class
-        $learners = Roster::where('classid', $classid)
-            ->leftJoin('learners', 'rosters.lrn', '=', 'learners.lrn')
-            ->leftJoin('assessment_answers', 'rosters.lrn', '=', 'assessment_answers.lrn')
-            ->select('learners.lrn', 'learners.firstname', 'learners.lastname', 'assessment_answers.score', 'assessment_answers.file')
-            ->get();
+        $learners = Roster::where('rosters.classid', $classid)
+        ->leftJoin('learners', 'rosters.lrn', '=', 'learners.lrn')
+        ->leftJoin('assessment_answers', function($join) use ($assessment_id) {
+            $join->on('rosters.lrn', '=', 'assessment_answers.lrn')
+                ->where('assessment_answers.assessmentid', '=', $assessment_id);
+        })
+        ->leftJoin('assessments', 'assessment_answers.assessmentid', '=', 'assessments.assessmentid')
+        ->select(
+            'learners.lrn', 
+            'learners.firstname', 
+            'learners.lastname', 
+            'assessment_answers.score', 
+            'assessment_answers.file'
+        )
+        ->get();
 
         // Check completion status for each student
         $learnersWithCompletionStatus = $learners->map(function ($learner) use ($assessment_id, $totalQuestions) {
@@ -827,6 +837,18 @@ class ExecuteController extends Controller
         return response()->json(['status' => 'Deleted successfully', 'response' => $question]);
     }
 
+    public function deleteAssessment($id)
+    {
+        $assess = Assessment::where('assessmentid', $id);
+
+        if ($assess) {
+            $assess->delete();
+            return response()->json(['message' => 'Lesson deleted successfully'], 200);
+        } else {
+            return response()->json(['message' => 'Lesson not found'], 404);
+        }
+    }
+
     public function showAll()
     {
         //
@@ -981,9 +1003,9 @@ class ExecuteController extends Controller
     {
         $validatedData = $request->validate([
             'classid' => 'required|integer',
-            'title' => 'required|string|max:255',
+            'title' => 'required|string',
             'description' => 'required|string',
-            'date' => 'required|string|max:255',
+            'date' => 'required|string',
         ]);
 
         $modules = Module::create($validatedData);

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Assessment extends Model
 {
     use HasFactory;
+    protected $primaryKey = 'assessmentid';
     protected $fillable = [
         'assessmentid',
         'lesson_id',
