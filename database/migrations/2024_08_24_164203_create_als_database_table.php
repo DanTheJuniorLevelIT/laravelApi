@@ -154,7 +154,7 @@ return new class extends Migration
             $table->unsignedBigInteger('discussionid');
             $table->unsignedBigInteger('lrn')->nullable();
             $table->unsignedBigInteger('adminID')->nullable();
-            $table->text('reply');
+            $table->longText('reply');
             $table->timestamps();
 
             // Foreign Keys
