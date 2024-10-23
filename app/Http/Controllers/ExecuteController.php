@@ -1041,6 +1041,7 @@ class ExecuteController extends Controller
         // ->where('modules.classid', $id)
         // ->get(); // Fetches all matching modules
         $mods = Module::where('classid', $id)
+                        ->orderBy('date', 'desc')
                         ->get(); // Fetches all matching modules
 
         return response()->json($mods);
