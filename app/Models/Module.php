@@ -8,8 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 class Module extends Model
 {
     use HasFactory;
+    protected $table = 'modules';
+    protected $primaryKey = 'modules_id';
     protected $fillable = [
-        'module_id',
+        'modules_id',
         'classid',
         'title',
         'description',

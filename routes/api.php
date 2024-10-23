@@ -33,6 +33,7 @@ Route::middleware(['auth:sanctum'])->group(function(){
         Route::get('/subjects/discussion', [ExecuteController::class, 'showDiscussion']);
         Route::get('/subjects/discussion/replies/{discussionid}', [ExecuteController::class, 'viewDiscussionReplies']);
         Route::post('/subjects/discussion/reply', [ExecuteController::class, 'sendDiscussionReplies']);
+        Route::put('/assessment/update-due-date/{assessmentID}', [ExecuteController::class, 'updateDueDate']);
         Route::get('/subjects/assessment', [ExecuteController::class, 'showAssessment']);
         Route::get('/subjects/showAssessment/{id}', [ExecuteController::class, 'showAssessmentDetails']);
         route::get('/subjects/getCompleted/{id}', [ExecuteController::class, 'getCompletionStats']);
@@ -46,6 +47,7 @@ Route::middleware(['auth:sanctum'])->group(function(){
         // zaina works
         Route::post('/modules/create', [ExecuteController::class, 'createModule']);
         Route::get('/modules/showModules/{id}', [ExecuteController::class, 'showModulesDetails']);
+        Route::put('/modules/updateDate/{id}', [ExecuteController::class, 'updateModuleDate']);
         Route::post('/modules/createLesson', [ExecuteController::class, 'createLesson']);
         Route::get('/modules/showLessons/{id}', [ExecuteController::class, 'showLessonDetails']);
         Route::get('/modules/getlessonid/{id}', [ExecuteController::class, 'getlessonid']);

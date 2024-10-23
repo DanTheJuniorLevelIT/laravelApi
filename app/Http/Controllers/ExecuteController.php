@@ -821,6 +821,21 @@ class ExecuteController extends Controller
         ], 200);
     }
 
+    public function updateDueDate(Request $request, $assessmentID)
+    {
+        // Validate new due date
+        $request->validate([
+            'due_date' => 'required|date'
+        ]);
+
+        // Update the due date of the assessment
+        DB::table('assessments')
+            ->where('assessmentID', $assessmentID)
+            ->update(['Due_date' => $request->due_date]);
+
+        return response()->json(['message' => 'Due date updated successfully']);
+    }
+
     /**
      * Remove the specified resource from storage.
      */
@@ -889,18 +904,23 @@ class ExecuteController extends Controller
 
     public function showAssessment()
     {
-        //
+        // Get the current date
+        $currentDate = now()->format('Y-m-d');
+
+        // Fetch assessments and check if the due date matches the current date
         $assess = DB::table('assessments')
-        ->leftJoin('lessons', 'assessments.lesson_id', '=', 'lessons.lesson_id')
-        ->select(
-            'assessments.assessmentID',
-            'assessments.Title',
-            'assessments.Instruction',
-            'assessments.Description',
-            'assessments.lesson_id',
-            DB::raw('DATE_FORMAT(assessments.Due_date, "%M %d, %Y") as formatted_due_date')
-        )
-        ->get();
+            ->leftJoin('lessons', 'assessments.lesson_id', '=', 'lessons.lesson_id')
+            ->select(
+                'assessments.assessmentID',
+                'assessments.Title',
+                'assessments.Instruction',
+                'assessments.Description',
+                'assessments.lesson_id',
+                'assessments.Due_date',
+                DB::raw('DATE_FORMAT(assessments.Due_date, "%M %d, %Y") as formatted_due_date'),
+                DB::raw("IF(assessments.Due_date = '$currentDate', 0, 1) as isOpen") // 0 for closed, 1 for open
+            )
+            ->get();
 
         return $assess;
     }
@@ -1015,16 +1035,31 @@ class ExecuteController extends Controller
     }
 
     public function showModulesDetails($id)
-{
-    // $mods = DB::table('modules')
-    // ->select('modules.*')
-    // ->where('modules.classid', $id)
-    // ->get(); // Fetches all matching modules
-    $mods = Module::where('classid', $id)
-                    ->get(); // Fetches all matching modules
+    {
+        // $mods = DB::table('modules')
+        // ->select('modules.*')
+        // ->where('modules.classid', $id)
+        // ->get(); // Fetches all matching modules
+        $mods = Module::where('classid', $id)
+                        ->get(); // Fetches all matching modules
 
-    return response()->json($mods);
-}
+        return response()->json($mods);
+    }
+
+    public function updateModuleDate(Request $request, $id)
+    {
+        // Fetch the module by ID
+        $module = Module::find($id);
+
+        // Update the date to today's date
+        $module->date = $request->date;
+
+        // Save the changes
+        $module->save();
+
+        return response()->json(['message' => 'Module date updated successfully.']);
+    }
+
 
 //createLesson
 //create module
