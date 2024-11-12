@@ -27,10 +27,12 @@ Route::middleware(['auth:sanctum'])->group(function(){
         Route::delete('/subjects/deleteQuestion/{id}', [ExecuteController::class, 'deleteQuestion']);
         Route::delete('modules/deleteAssessment/{id}', [ExecuteController::class, 'deleteAssessment']);
         Route::get('/subjects/showAnnouncement/{id}', [ExecuteController::class, 'showAnnouncement']);
+        Route::delete('/subjects/deleteAnnouncement/{id}', [ExecuteController::class, 'deleteAnnouncement']);
         Route::get('/subjects/showQuestion/{id}', [ExecuteController::class, 'showQuestions']);
         Route::get('/subjects/showAll', [ExecuteController::class, 'showAll']);
         Route::get('/subjects/allSubjects/{id}', [ExecuteController::class, 'teacherAllSubjects']);
-        Route::get('/subjects/discussion', [ExecuteController::class, 'showDiscussion']);
+        Route::get('/subjects/showDiscussion/{id}', [ExecuteController::class, 'showDiscussion']);
+        Route::get('/subjects/discussion/{id}', [ExecuteController::class, 'countDiscussion']);
         Route::get('/subjects/discussion/replies/{discussionid}', [ExecuteController::class, 'viewDiscussionReplies']);
         Route::post('/subjects/discussion/reply', [ExecuteController::class, 'sendDiscussionReplies']);
         Route::put('/assessment/update-due-date/{assessmentID}', [ExecuteController::class, 'updateDueDate']);

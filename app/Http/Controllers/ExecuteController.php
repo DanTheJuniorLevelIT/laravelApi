@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Execute;
+use Exception;
 use App\Http\Controllers\Log;
 use App\Models\Subject;
 use App\Models\Assessment;
@@ -11,6 +12,7 @@ use App\Models\Discussion_Reply;
 use App\Http\Requests\StoreExecuteRequest;
 use App\Http\Requests\UpdateExecuteRequest;
 use App\Models\Admin;
+use App\Models\Classes;
 use App\Models\Announcement;
 use App\Models\Learner;
 use App\Models\Question;
@@ -844,6 +846,17 @@ class ExecuteController extends Controller
         //
     }
 
+    public function deleteAnnouncement($classid) {
+        $announcement = Announcement::where('subjectid', $classid)->first();
+    
+        if ($announcement) {
+            $announcement->delete();
+            return response()->json(['message' => 'Announcement deleted successfully.'], 200);
+        }
+    
+        return response()->json(['message' => 'Announcement not found.'], 404);
+    }    
+
     public function deleteQuestion($id)
     {
         $question = Question::where('question_id', $id)
@@ -888,7 +901,7 @@ class ExecuteController extends Controller
         return $subject;
     }
 
-    public function showDiscussion()
+    public function showDiscussion($id)
     {
         //
         $discuss = Discussion::select(
@@ -897,9 +910,19 @@ class ExecuteController extends Controller
             'discussion_topic',
             DB::raw('DATE_FORMAT(created_at, "%M %d, %Y") as created')
             )
+            ->where('lesson_id', $id)
             ->get();
 
         return $discuss;
+    }
+
+    public function countDiscussion($id)
+    {
+        //
+        $countDiscussion = Discussion::where('lesson_id', $id)
+            ->count();
+
+        return $countDiscussion;
     }
 
     public function showAssessment()
@@ -1018,6 +1041,7 @@ class ExecuteController extends Controller
         ];
     }
 
+    //elzaina
     //create module
     public function createModule(Request $request)
     {
@@ -1062,178 +1086,169 @@ class ExecuteController extends Controller
     }
 
 
-//createLesson
-//create module
-public function createLesson(Request $request)
-{
-    $validatedData = $request->validate([
-        'module_id' => 'required|integer',
-        'topic_title' => 'required|string',
-        'lesson' => 'required|string',
-        'file' => 'nullable|file|max:2048' 
-    ]);
+    //createLesson
+    //create module
+    public function createLesson(Request $request)
+    {
+        $validatedData = $request->validate([
+            'module_id' => 'required|integer',
+            'topic_title' => 'required|string',
+            'lesson' => 'required|string',
+            'file' => 'nullable|file|max:2048' 
+        ]);
 
-    if ($request->hasFile('file')) {
-        $file = $request->file('file');
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
 
-        $originalFileName = time() . '_' . $file->getClientOriginalName();
+            $originalFileName = time() . '_' . $file->getClientOriginalName();
 
-        $filePath = $file->storeAs('lesson file', $originalFileName, 'public');
-        
-        $validatedData['file'] = $filePath;
+            $filePath = $file->storeAs('lesson file', $originalFileName, 'public');
+            
+            $validatedData['file'] = $filePath;
+        }
+
+        $lesson = Lesson::create($validatedData);
+
+        return response()->json($lesson);
     }
 
-    $lesson = Lesson::create($validatedData);
+    public function showLessonDetails($id)
+    {
+            $lessons = DB::table('lessons')
+            ->leftJoin('media', 'lessons.lesson_id', '=', 'media.lesson_id')
+            ->select(
+                'lessons.lesson_id',
+                'lessons.module_id',
+                'lessons.topic_title',
+                'lessons.lesson',
+                'lessons.handout',
+                'lessons.file',
+                DB::raw('GROUP_CONCAT(media.filename) as media_files'), // Concatenate media filenames
+                DB::raw('GROUP_CONCAT(media.media_id) as media_ids') // Concatenate media IDs
+            )
+            ->where('lessons.module_id', $id)
+            ->groupBy(
+                'lessons.lesson_id',
+                'lessons.module_id',
+                'lessons.topic_title',
+                'lessons.lesson',
+                'lessons.handout',
+                'lessons.file',
+            )  // Add all selected columns to GROUP BY
+            ->get();
 
-    return response()->json($lesson);
-}
+            $lessonid = DB::table('lessons')->select('lessons.lesson_id')->where('lessons.module_id', $id)->value('lesson_id');
 
-public function showLessonDetails($id)
-{
-    // $mods = DB::table('modules')
-    // ->select('modules.*')
-    // ->where('modules.classid', $id)
-    // ->get(); // Fetches all matching modules
-    // $les = Lesson::where('modules_id', $id)
-                    // ->get(); 
-                    
-    // $les = DB::table('lessons')
-    //         ->leftJoin('media','lessons.lesson_id','=','media.lesson_id')
-    //         ->select('lessons.*','media.filename')
-    //         ->where('lessons.modules_id',$id)
-    //         ->get(); // Fetches all matching modules
+            $mediaIds = $lessons->pluck('media_ids')->toArray(); // Get all media IDs
+            error_log('Media IDs: ' . implode(', ', $mediaIds)); // Log to console
 
-    //     return $les;
-
-        $lessons = DB::table('lessons')
-        ->leftJoin('media', 'lessons.lesson_id', '=', 'media.lesson_id')
-        ->select(
-            'lessons.lesson_id',
-            'lessons.module_id',
-            'lessons.topic_title',
-            'lessons.lesson',
-            'lessons.handout',
-            'lessons.file',
-            DB::raw('GROUP_CONCAT(media.filename) as media_files'), // Concatenate media filenames
-            DB::raw('GROUP_CONCAT(media.media_id) as media_ids') // Concatenate media IDs
-        )
-        ->where('lessons.module_id', $id)
-        ->groupBy(
-            'lessons.lesson_id',
-            'lessons.module_id',
-            'lessons.topic_title',
-            'lessons.lesson',
-            'lessons.handout',
-            'lessons.file',
-        )  // Add all selected columns to GROUP BY
-        ->get();
-
-        $mediaIds = $lessons->pluck('media_ids')->toArray(); // Get all media IDs
-        error_log('Media IDs: ' . implode(', ', $mediaIds)); // Log to console
-
-    return $lessons;
-}
-
-public function getlessonid($id)
-{
-    $les = DB::table('lessons')
-                    ->select('lessons.*')
-                    ->where('lessons.lesson_id',$id)
-                    ->get(); // Fetches all matching modules
-
-    return $les;
-}
-
-public function updateLessonInfo(Request $request, $id) {
-
-    // Check if the ID is null or invalid
-    if (is_null($id)) {
-        return response()->json(['message' => 'Lesson ID is missing'], 400);
+        // return $lessons;
+        return [
+            'lessons' => $lessons,
+            'lessonid' => $lessonid
+        ];
     }
 
-    // Validate the request
-    $validatedData = $request->validate([
-        'topic_title' => 'required|string',
-        'lesson' => 'required|string',
-    ]);
+    public function getlessonid($id)
+    {
+        $les = DB::table('lessons')
+                        ->select('lessons.*')
+                        ->where('lessons.lesson_id',$id)
+                        ->get(); // Fetches all matching modules
 
-    // Fetch the lesson by lesson_id
-    $lesson = Lesson::find($id);
-
-    // Update lesson data
-    $lesson->fill($validatedData);
-    $lesson->save();
-
-    return response()->json(['message' => 'Lesson updated successfully']);
-}
-
-public function deleteLesson($id)
-{
-    $lesson = Lesson::where('lesson_id', $id);
-
-    if ($lesson) {
-        $lesson->delete();
-        return response()->json(['message' => 'Lesson deleted successfully'], 200);
-    } else {
-        return response()->json(['message' => 'Lesson not found'], 404);
-    }
-}
-
-public function uploadMedia(Request $request)
-{
-    // Validate the request
-    $request->validate([
-        'lesson_id' => 'required',
-        'file' => 'required|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:2048'  // Restrict file types and size
-    ]);
-
-    // Store the file
-    if ($request->hasFile('file')) {
-        $file = $request->file('file');
-        $filename = time() . '_' . $file->getClientOriginalName();
-
-        // if ($request->hasFile('file') == 'file'=> )
-        $filePath = $file->storeAs('uploads', $filename, 'public');
-
-        // Save file information to the database
-        $media = new Media();
-        $media->lesson_id = $request->input('lesson_id');
-        $media->uploader_id = null;
-        $media->type = $file->getClientOriginalExtension();
-        $media->filename = $filePath;
-        $media->save();
-
-        return response()->json(['message' => 'File uploaded successfully', 'file' => $filePath], 200);
+        return $les;
     }
 
-    return response()->json(['message' => 'File not uploaded'], 400);
-}
+    public function updateLessonInfo(Request $request, $id) {
 
-public function deleteFile($id)
-{
-    $lesson = Lesson::find($id);
-    if ($lesson) {
-        // Update the file field to null
-        $lesson->file = null;
+        // Check if the ID is null or invalid
+        if (is_null($id)) {
+            return response()->json(['message' => 'Lesson ID is missing'], 400);
+        }
+
+        // Validate the request
+        $validatedData = $request->validate([
+            'topic_title' => 'required|string',
+            'lesson' => 'required|string',
+        ]);
+
+        // Fetch the lesson by lesson_id
+        $lesson = Lesson::find($id);
+
+        // Update lesson data
+        $lesson->fill($validatedData);
         $lesson->save();
 
-        return response()->json(['message' => 'File deleted successfully'], 200);
-    } else {
-        return response()->json(['message' => 'Lesson not found'], 404);
+        return response()->json(['message' => 'Lesson updated successfully']);
     }
-}
 
-public function deleteMediaFile($id)
-{
-    $media = Media::find($id);
-    if ($media) {
-        // Update the file field to null
-        // $media->file = null;
-        $media->delete();
+    public function deleteLesson($id)
+    {
+        $lesson = Lesson::where('lesson_id', $id);
 
-        return response()->json(['message' => 'File deleted successfully'], 200);
-    } else {
-        return response()->json(['message' => 'Lesson not found'], 404);
+        if ($lesson) {
+            $lesson->delete();
+            return response()->json(['message' => 'Lesson deleted successfully'], 200);
+        } else {
+            return response()->json(['message' => 'Lesson not found'], 404);
+        }
     }
-}
+
+    public function uploadMedia(Request $request)
+    {
+        // Validate the request
+        $request->validate([
+            'lesson_id' => 'required',
+            'file' => 'required|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:2048'  // Restrict file types and size
+        ]);
+
+        // Store the file
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $filename = time() . '_' . $file->getClientOriginalName();
+
+            // if ($request->hasFile('file') == 'file'=> )
+            $filePath = $file->storeAs('uploads', $filename, 'public');
+
+            // Save file information to the database
+            $media = new Media();
+            $media->lesson_id = $request->input('lesson_id');
+            $media->uploader_id = null;
+            $media->type = $file->getClientOriginalExtension();
+            $media->filename = $filePath;
+            $media->save();
+
+            return response()->json(['message' => 'File uploaded successfully', 'file' => $filePath], 200);
+        }
+
+        return response()->json(['message' => 'File not uploaded'], 400);
+    }
+
+    public function deleteFile($id)
+    {
+        $lesson = Lesson::find($id);
+        if ($lesson) {
+            // Update the file field to null
+            $lesson->file = null;
+            $lesson->save();
+
+            return response()->json(['message' => 'File deleted successfully'], 200);
+        } else {
+            return response()->json(['message' => 'Lesson not found'], 404);
+        }
+    }
+
+    public function deleteMediaFile($id)
+    {
+        $media = Media::find($id);
+        if ($media) {
+            // Update the file field to null
+            // $media->file = null;
+            $media->delete();
+
+            return response()->json(['message' => 'File deleted successfully'], 200);
+        } else {
+            return response()->json(['message' => 'Lesson not found'], 404);
+        }
+    }
 }

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Announcement extends Model
 {
     use HasFactory;
+    protected $primaryKey = 'subjectid';
     protected $fillable = [
         'subjectid',
         'title',
