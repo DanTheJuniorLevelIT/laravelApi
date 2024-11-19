@@ -247,7 +247,7 @@ class ExecuteController extends Controller
 
         // Retrieve the subjects based on the program
         $subject = DB::table('classes')
-            ->leftJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID') // left join
+            ->leftJoin('subjects', 'classes.subjectid', '=', 'subjects.subjectid') // left join
             ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid') // left join
             ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.schedule', 'rooms.school')
             ->where('classes.adminid', $id) 
@@ -892,9 +892,9 @@ class ExecuteController extends Controller
     {
         //
         $subject = DB::table('classes')
-            ->leftJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID')
+            ->leftJoin('subjects', 'classes.subjectid', '=', 'subjects.subjectid')
             ->leftJoin('rooms', 'classes.roomid', '=', 'rooms.roomid')
-            ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule', 'rooms.school')
+            ->select('classes.classid', 'subjects.subjectid', 'subjects.image', 'subjects.subject_name', 'subjects.Program', 'classes.Schedule', 'rooms.school')
             ->where('classes.adminid', $id) 
             ->get();
 

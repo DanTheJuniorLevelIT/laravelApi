@@ -81,7 +81,7 @@ return new class extends Migration
             $table->unsignedBigInteger('subjectid');
             $table->unsignedBigInteger('roomid');
             $table->string('schedule');
-            // $table->timestamps();
+            $table->timestamps();
 
             // Foreign Keys
             // $table->foreign('adminID')->references('adminID')->on('admins')->onDelete('cascade');
@@ -167,7 +167,7 @@ return new class extends Migration
             $table->id('lesson_id');
             $table->unsignedBigInteger('module_id');
             $table->string('topic_title');
-            $table->text('lesson');
+            $table->longText('lesson');
             $table->text('handout')->nullable();
             $table->string('file')->nullable();
             $table->timestamps();
@@ -217,7 +217,7 @@ return new class extends Migration
             $table->unsignedBigInteger('question_id');
             $table->string('lrn');
             $table->string('answer');
-            $table->integer('score');
+            $table->integer('score')->nullable();
             $table->timestamps();
 
             // Foreign Keys
@@ -242,7 +242,7 @@ return new class extends Migration
 
         Schema::create('media', function (Blueprint $table) {
             $table->id('media_id');
-            $table->unsignedBigInteger('lesson_id');
+            $table->unsignedBigInteger('lesson_id')->nullable();
             $table->unsignedBigInteger('uploader_id')->nullable();
             $table->string('type');
             $table->string('filename');
