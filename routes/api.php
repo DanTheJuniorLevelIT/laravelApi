@@ -58,6 +58,11 @@ Route::middleware(['auth:sanctum'])->group(function(){
         Route::post('modules/uploadMedia', [ExecuteController::class, 'uploadMedia']);
         Route::delete('/modules/deleteFile/{id}', [ExecuteController::class, 'deleteFile']);
         Route::delete('/modules/deleteMediaFile/{id}', [ExecuteController::class, 'deleteMediaFile']);
+        //mark works
+        Route::get('/messages/{id}', [ExecuteController::class, 'showMessages']);
+        Route::get('/students/{id}', [ExecuteController::class, 'getStudents']);
+        Route::post('/messages/reply', [ExecuteController::class, 'sendReply']);
+        Route::post('/messages/compose', [ExecuteController::class, 'sendMessage']);
     });
 
     Route::middleware(['admin'])->group(function(){

@@ -5,13 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Announcement extends Model
+class Message extends Model
 {
     use HasFactory;
-    protected $primaryKey = 'classid';
+    protected $primaryKey = 'messageid';
     protected $fillable = [
-        'classid',
-        'title',
-        'instruction'
+        'adminID',
+        'sender_name',
+        'lrn',
+        'messages'
     ];
 }

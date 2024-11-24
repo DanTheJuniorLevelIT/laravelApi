@@ -19,6 +19,7 @@ use App\Models\Question;
 use App\Models\Option;
 use App\Models\Lesson;
 use App\Models\Media;
+use App\Models\Message;
 use App\Models\Module;
 use App\Models\Answer;
 use App\Models\Assessment_Answer;
@@ -26,6 +27,9 @@ use App\Models\Roster;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+
 
 class ExecuteController extends Controller
 {
@@ -151,17 +155,17 @@ class ExecuteController extends Controller
     public function createAnnouncement(Request $request)
     {
         $request->validate([
-            'subjectID' => 'required',
+            'classid' => 'required',
             'title' => 'required|string',
             'instruction' => 'required|string'
         ]);
 
         // Check if an announcement for the subjectID exists
-        $announcement = Announcement::where('subjectid', $request->subjectID)->first();
+        $announcement = Announcement::where('classid', $request->classid)->first();
 
         if ($announcement) {
             // Update existing announcement
-            Announcement::where('subjectid', $request->subjectID)->update([
+            Announcement::where('classid', $request->classid)->update([
                 'title' => $request->title,
                 'instruction' => $request->instruction
             ]);
@@ -170,7 +174,7 @@ class ExecuteController extends Controller
                 'success' => true,
                 'message' => 'Announcement updated successfully',
                 'announcement' => [
-                    'subjectID' => $announcement->subjectid,
+                    'classid' => $announcement->classid,
                     'title' => $announcement->title,
                     'instruction' => $announcement->instruction
                 ]
@@ -178,7 +182,7 @@ class ExecuteController extends Controller
         } else {
             // Create new announcement
             $announce = Announcement::create([
-                'subjectid' => $request->subjectID,
+                'classid' => $request->classid,
                 'title' => $request->title,
                 'instruction' => $request->instruction
             ]);
@@ -187,7 +191,7 @@ class ExecuteController extends Controller
                 'success' => true,
                 'message' => 'Announcement created successfully',
                 'announcement' => [
-                    'subjectID' => $announce->subjectid,
+                    'classid' => $announce->classid,
                     'title' => $announce->title,
                     'instruction' => $announce->instruction
                 ]
@@ -201,19 +205,43 @@ class ExecuteController extends Controller
      * Display the specified resource.
      */
 
+    public function showMessages($id)
+    {
+        $messages = Message::join('rosters', 'messages.lrn', '=', 'rosters.lrn')
+            ->join('classes', 'rosters.classid', '=', 'classes.classid')
+            ->join('learners', 'learners.lrn', '=', 'messages.lrn')
+            ->where('classes.adminid', $id)
+            ->select('messages.*', 'learners.firstname', 'learners.lastname', 'learners.lrn', 'messages.sender_name')
+            ->orderBy('messages.updated_at', 'desc')
+            ->get();
+    
+        return response()->json($messages);
+    }     
+
+    public function getStudents($id)
+    {
+        $students = Learner::join('rosters', 'learners.lrn', '=', 'rosters.lrn')
+            ->join('classes', 'rosters.classid', '=', 'classes.classid')
+            ->where('classes.adminid', $id)
+            ->select('learners.studentid', 'learners.firstname', 'learners.lastname', 'learners.lrn')
+            ->distinct()
+            ->get();     
+        return response()->json($students);
+    }
+
     public function showAnnouncement($id)
     {
-        $announce = DB::table('subjects')
-                        ->rightJoin('announcements', 'subjects.subjectid', '=', 'announcements.subjectid')
-                        ->where('announcements.subjectid', $id)
+        $announce = DB::table('classes')
+                        ->rightJoin('announcements', 'classes.classid', '=', 'announcements.classid')
+                        ->where('announcements.classid', $id)
                         ->select('announcements.announceid', 'announcements.title', 'announcements.instruction')
                         ->first();
 
-        $announceid = DB::table('subjects')
-                        ->rightJoin('announcements', 'subjects.subjectid', '=', 'announcements.subjectid')
-                        ->where('announcements.subjectid', $id)
-                        ->select('announcements.subjectid')
-                        ->value('subjectid');
+        $announceid = DB::table('classes')
+                        ->rightJoin('announcements', 'classes.classid', '=', 'announcements.classid')
+                        ->where('announcements.classid', $id)
+                        ->select('announcements.classid')
+                        ->value('classid');
 
         return [
             'announce' => $announce,
@@ -681,13 +709,16 @@ class ExecuteController extends Controller
     }
 
     // Fetch discussion replies based on discussionID
+    // OLD
     public function viewDiscussionReplies($discussionid)
     {
         $replies = Discussion_Reply::where('discussionid', $discussionid)
             ->leftJoin('admins', 'discussion_replies.adminID', '=', 'admins.adminID') // Join with the Admins table
             ->leftJoin('learners', 'discussion_replies.lrn', '=', 'learners.lrn') // Join with the Learners table
             ->select(
-                'discussion_replies.*',
+                'discussion_replies.reply',
+                'discussion_replies.lrn',
+                // 'discussion_replies.created_at',
                 'admins.firstname as teacher_firstname', 
                 'admins.lastname as teacher_lastname',
                 'learners.firstname as student_firstname',
@@ -698,6 +729,32 @@ class ExecuteController extends Controller
 
         return response()->json($replies);
     }
+
+    // Cache
+    // public function viewDiscussionReplies($discussionid)
+    // {
+    //     $cacheKey = "discussion_replies_{$discussionid}";
+    //     $cacheDuration = 20; // Cache duration in seconds (align with Angular's interval)
+
+    //     $replies = Cache::remember($cacheKey, $cacheDuration, function () use ($discussionid) {
+    //         return Discussion_Reply::where('discussionid', $discussionid)
+    //             ->leftJoin('admins', 'discussion_replies.adminID', '=', 'admins.adminID') // Join with the Admins table
+    //             ->leftJoin('learners', 'discussion_replies.lrn', '=', 'learners.lrn') // Join with the Learners table
+    //             ->select(
+    //                 'discussion_replies.reply',
+    //                 'discussion_replies.lrn',
+    //                 'admins.firstname as teacher_firstname', 
+    //                 'admins.lastname as teacher_lastname',
+    //                 'learners.firstname as student_firstname',
+    //                 'learners.lastname as student_lastname'
+    //             )
+    //             ->orderBy('discussion_replies.created_at', 'asc')
+    //             ->get();
+    //     });
+
+    //     return response()->json($replies);
+    // }
+
 
 
 
@@ -721,6 +778,64 @@ class ExecuteController extends Controller
 
         return response()->json(['message' => 'Reply sent successfully', 'reply' => $reply]);
     }
+
+    public function sendReply(Request $request)
+    {
+        $validatedData = $request->validate([
+            'lrn' => 'required|exists:learners,lrn',
+            'messages' => 'required|string',
+            'adminID' => 'required|exists:admins,adminid',
+        ]);
+
+        // Fetch admin details
+        $admin = Admin::find($validatedData['adminID']);
+
+        // Update or create the message
+        $message = Message::where('lrn', $validatedData['lrn'])
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if ($message) {
+            $message->messages = $validatedData['messages'];
+            $message->adminID = $validatedData['adminID'];
+            $message->sender_name = $admin->firstname . ' ' . $admin->lastname; // Add sender name
+            $message->updated_at = now();
+            $message->save();
+        } else {
+            $message = new Message();
+            $message->lrn = $validatedData['lrn'];
+            $message->adminID = $validatedData['adminID'];
+            $message->messages = $validatedData['messages'];
+            $message->sender_name = $admin->firstname . ' ' . $admin->lastname; // Add sender name
+            $message->save();
+        }
+
+        return response()->json(['message' => 'Reply sent successfully!'], 200);
+    }
+
+    public function sendMessage(Request $request)
+    {
+        $validatedData = $request->validate([
+            'lrn' => 'required|exists:learners,lrn',
+            'messages' => 'required|string',
+            'adminID' => 'required|exists:admins,adminid',
+        ]);
+
+        $admin = Admin::find($validatedData['adminID']);
+
+        $message = new Message();
+        $message->lrn = $validatedData['lrn'];
+        $message->adminID = $validatedData['adminID'];
+        $message->messages = $validatedData['messages'];
+        $message->sender_name = $admin->firstname . ' ' . $admin->lastname; // Store sender's name
+        $message->save();
+
+        return response()->json(['message' => 'Message sent successfully!'], 200);
+    }
+
+
+
+
 
 
     /**
@@ -847,7 +962,7 @@ class ExecuteController extends Controller
     }
 
     public function deleteAnnouncement($classid) {
-        $announcement = Announcement::where('subjectid', $classid)->first();
+        $announcement = Announcement::where('classid', $classid)->first();
     
         if ($announcement) {
             $announcement->delete();

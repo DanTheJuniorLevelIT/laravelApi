@@ -65,8 +65,9 @@ return new class extends Migration
 
         Schema::create('messages', function (Blueprint $table) {
             $table->id('messageid');
-            $table->unsignedBigInteger('senderid');
-            $table->unsignedBigInteger('receiverid');
+            $table->unsignedBigInteger('adminID')->nullable();
+            $table->unsignedBigInteger('lrn')->nullable();
+            $table->string('sender_name')->nullable();
             $table->text('messages');
             $table->timestamps();
 
@@ -119,7 +120,7 @@ return new class extends Migration
 
         Schema::create('announcements', function (Blueprint $table) {
             $table->id('announceid');
-            $table->unsignedBigInteger('subjectid');
+            $table->unsignedBigInteger('classid');
             $table->string('title');
             $table->text('instruction');
             $table->timestamps();
