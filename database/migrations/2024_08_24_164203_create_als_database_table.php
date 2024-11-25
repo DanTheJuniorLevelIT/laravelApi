@@ -41,9 +41,6 @@ return new class extends Migration
             $table->string('school_year');
             $table->date('enrolldate');
             $table->timestamps();
-
-            // Foreign Key
-            // $table->foreign('LRN')->references('LRN')->on('learners')->onDelete('cascade');
         });
 
         Schema::create('admins', function (Blueprint $table) {
@@ -71,10 +68,6 @@ return new class extends Migration
             $table->string('sender_name')->nullable();
             $table->text('messages');
             $table->timestamps();
-
-            // Foreign Keys
-            // $table->foreign('senderID')->references('adminID')->on('admins')->onDelete('cascade');
-            // $table->foreign('receiverID')->references('adminID')->on('admins')->onDelete('cascade');
         });
 
         Schema::create('classes', function (Blueprint $table) {
@@ -84,11 +77,6 @@ return new class extends Migration
             $table->unsignedBigInteger('roomid');
             $table->string('schedule');
             $table->timestamps();
-
-            // Foreign Keys
-            // $table->foreign('adminID')->references('adminID')->on('admins')->onDelete('cascade');
-            // $table->foreign('subjectID')->references('subjectID')->on('subjects')->onDelete('cascade');
-            // $table->foreign('RoomID')->references('RoomID')->on('rooms')->onDelete('cascade');
         });
 
         Schema::create('rooms', function (Blueprint $table) {
@@ -105,7 +93,7 @@ return new class extends Migration
             $table->string('subject_name');
             $table->text('description')->nullable();
             $table->string('program');
-            // $table->timestamps();
+            $table->timestamps();
         });
 
         Schema::create('rosters', function (Blueprint $table) {
@@ -113,10 +101,6 @@ return new class extends Migration
             $table->unsignedBigInteger('classid');
             $table->unsignedBigInteger('lrn');
             $table->timestamps();
-
-            // Foreign Keys
-            // $table->foreign('classID')->references('classID')->on('classes')->onDelete('cascade');
-            // $table->foreign('LRN')->references('LRN')->on('learners')->onDelete('cascade');
         });
 
         Schema::create('announcements', function (Blueprint $table) {
@@ -125,9 +109,6 @@ return new class extends Migration
             $table->string('title');
             $table->text('instruction');
             $table->timestamps();
-
-            // Foreign Key
-            // $table->foreign('subjectID')->references('subjectID')->on('subjects')->onDelete('cascade');
         });
 
         Schema::create('modules', function (Blueprint $table) {
@@ -137,9 +118,6 @@ return new class extends Migration
             $table->text('description');
             $table->date('date')->nullable();
             $table->timestamps();
-
-            // Foreign Key
-            // $table->foreign('classID')->references('classID')->on('classes')->onDelete('cascade');
         });
 
         Schema::create('discussions', function (Blueprint $table) {
@@ -147,9 +125,6 @@ return new class extends Migration
             $table->unsignedBigInteger('lesson_id');
             $table->text('Discussion_Topic');
             $table->timestamps();
-
-            // Foreign Key
-            // $table->foreign('Lesson_ID')->references('Lessons_ID')->on('lessons')->onDelete('cascade');
         });
 
         Schema::create('discussion_replies', function (Blueprint $table) {
@@ -159,10 +134,6 @@ return new class extends Migration
             $table->unsignedBigInteger('adminID')->nullable();
             $table->longText('reply');
             $table->timestamps();
-
-            // Foreign Keys
-            // $table->foreign('discussionID')->references('discussionID')->on('discussions')->onDelete('cascade');
-            // $table->foreign('LRN')->references('LRN')->on('learners')->onDelete('cascade');
         });
 
         Schema::create('lessons', function (Blueprint $table) {
@@ -173,9 +144,6 @@ return new class extends Migration
             $table->text('handout')->nullable();
             $table->string('file')->nullable();
             $table->timestamps();
-
-            // Foreign Key
-            // $table->foreign('Module_ID')->references('Module_ID')->on('modules')->onDelete('cascade');
         });
 
         Schema::create('assessments', function (Blueprint $table) {
@@ -186,9 +154,6 @@ return new class extends Migration
             $table->text('description');
             $table->date('due_date');
             $table->timestamps();
-
-            // Foreign Key
-            // $table->foreign('Lesson_ID')->references('Lessons_ID')->on('lessons')->onDelete('cascade');
         });
 
         Schema::create('questions', function (Blueprint $table) {
@@ -199,9 +164,6 @@ return new class extends Migration
             $table->string('key_answer')->nullable();
             $table->integer('points');
             $table->timestamps();
-
-            // Foreign Key
-            // $table->foreign('Assessment_ID')->references('assessmentID')->on('assessments')->onDelete('cascade');
         });
 
         Schema::create('options', function (Blueprint $table) {
@@ -209,9 +171,6 @@ return new class extends Migration
             $table->unsignedBigInteger('question_id');
             $table->string('option_text');
             $table->timestamps();
-
-            // Foreign Key
-            // $table->foreign('Question_ID')->references('Question_ID')->on('questions')->onDelete('cascade');
         });
 
         Schema::create('answers', function (Blueprint $table) {
@@ -221,10 +180,6 @@ return new class extends Migration
             $table->string('answer');
             $table->integer('score')->nullable();
             $table->timestamps();
-
-            // Foreign Keys
-            // $table->foreign('Question_ID')->references('Question_ID')->on('questions')->onDelete('cascade');
-            // $table->foreign('LRN')->references('LRN')->on('learners')->onDelete('cascade');
         });
 
         Schema::create('assessment_answers', function (Blueprint $table) {
@@ -236,10 +191,6 @@ return new class extends Migration
             $table->date('date_submission');
             $table->string('file')->nullable();
             $table->timestamps();
-
-            // Foreign Keys
-            // $table->foreign('assessmentID')->references('assessmentID')->on('assessments')->onDelete('cascade');
-            // $table->foreign('LRN')->references('LRN')->on('learners')->onDelete('cascade');
         });
 
         Schema::create('media', function (Blueprint $table) {
@@ -249,10 +200,6 @@ return new class extends Migration
             $table->string('type');
             $table->string('filename');
             $table->timestamps();
-
-            // Foreign Keys
-            // $table->foreign('Lesson_ID')->references('Lessons_ID')->on('lessons')->onDelete('cascade');
-            // $table->foreign('Uploader_ID')->references('adminID')->on('admins')->onDelete('cascade');
         });
     }
 
