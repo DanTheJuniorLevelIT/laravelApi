@@ -63,6 +63,8 @@ Route::middleware(['auth:sanctum'])->group(function(){
         Route::get('/students/{id}', [ExecuteController::class, 'getStudents']);
         Route::post('/messages/reply', [ExecuteController::class, 'sendReply']);
         Route::post('/messages/compose', [ExecuteController::class, 'sendMessage']);
+        Route::post('/uploadProfilePicture/{id}', [ExecuteController::class, 'uploadProfilePicture']);
+        Route::post('/updateAdminPassword/{id}', [ExecuteController::class, 'updateAdminPassword']);
     });
 
     Route::middleware(['admin'])->group(function(){

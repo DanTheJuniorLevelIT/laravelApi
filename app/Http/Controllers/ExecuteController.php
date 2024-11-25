@@ -71,8 +71,9 @@ class ExecuteController extends Controller
         return $subject;
     }
 
+    // Dan WORKS
     /**
-     * Store a newly created resource in storage.
+     * CREATE DATA
      */
     public function store(Request $request)
     {
@@ -202,32 +203,8 @@ class ExecuteController extends Controller
 
 
     /**
-     * Display the specified resource.
+     * DISPLAY SPECIFIC DATA BY ID
      */
-
-    public function showMessages($id)
-    {
-        $messages = Message::join('rosters', 'messages.lrn', '=', 'rosters.lrn')
-            ->join('classes', 'rosters.classid', '=', 'classes.classid')
-            ->join('learners', 'learners.lrn', '=', 'messages.lrn')
-            ->where('classes.adminid', $id)
-            ->select('messages.*', 'learners.firstname', 'learners.lastname', 'learners.lrn', 'messages.sender_name')
-            ->orderBy('messages.updated_at', 'desc')
-            ->get();
-    
-        return response()->json($messages);
-    }     
-
-    public function getStudents($id)
-    {
-        $students = Learner::join('rosters', 'learners.lrn', '=', 'rosters.lrn')
-            ->join('classes', 'rosters.classid', '=', 'classes.classid')
-            ->where('classes.adminid', $id)
-            ->select('learners.studentid', 'learners.firstname', 'learners.lastname', 'learners.lrn')
-            ->distinct()
-            ->get();     
-        return response()->json($students);
-    }
 
     public function showAnnouncement($id)
     {
@@ -779,67 +756,13 @@ class ExecuteController extends Controller
         return response()->json(['message' => 'Reply sent successfully', 'reply' => $reply]);
     }
 
-    public function sendReply(Request $request)
-    {
-        $validatedData = $request->validate([
-            'lrn' => 'required|exists:learners,lrn',
-            'messages' => 'required|string',
-            'adminID' => 'required|exists:admins,adminid',
-        ]);
-
-        // Fetch admin details
-        $admin = Admin::find($validatedData['adminID']);
-
-        // Update or create the message
-        $message = Message::where('lrn', $validatedData['lrn'])
-            ->orderBy('created_at', 'desc')
-            ->first();
-
-        if ($message) {
-            $message->messages = $validatedData['messages'];
-            $message->adminID = $validatedData['adminID'];
-            $message->sender_name = $admin->firstname . ' ' . $admin->lastname; // Add sender name
-            $message->updated_at = now();
-            $message->save();
-        } else {
-            $message = new Message();
-            $message->lrn = $validatedData['lrn'];
-            $message->adminID = $validatedData['adminID'];
-            $message->messages = $validatedData['messages'];
-            $message->sender_name = $admin->firstname . ' ' . $admin->lastname; // Add sender name
-            $message->save();
-        }
-
-        return response()->json(['message' => 'Reply sent successfully!'], 200);
-    }
-
-    public function sendMessage(Request $request)
-    {
-        $validatedData = $request->validate([
-            'lrn' => 'required|exists:learners,lrn',
-            'messages' => 'required|string',
-            'adminID' => 'required|exists:admins,adminid',
-        ]);
-
-        $admin = Admin::find($validatedData['adminID']);
-
-        $message = new Message();
-        $message->lrn = $validatedData['lrn'];
-        $message->adminID = $validatedData['adminID'];
-        $message->messages = $validatedData['messages'];
-        $message->sender_name = $admin->firstname . ' ' . $admin->lastname; // Store sender's name
-        $message->save();
-
-        return response()->json(['message' => 'Message sent successfully!'], 200);
-    }
-
 
 
 
 
 
     /**
-     * Update the specified resource in storage.
+     * UPDATE FUNCTION
      */
     public function update(Request $request, Execute $execute)
     {
@@ -954,7 +877,7 @@ class ExecuteController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * DELETE FUNCTION
      */
     public function destroy(Execute $execute)
     {
@@ -1063,6 +986,8 @@ class ExecuteController extends Controller
         return $assess;
     }
 
+    // Login Function
+
     public function registerAdmin(Request $request){
         $formField = $request->validate([
             'firstname' => 'required|string|max:255',
@@ -1123,7 +1048,13 @@ class ExecuteController extends Controller
         return [
             'adminid' => $adminid,
             'role' => $role,
-            'user' => $user,
+            'details' => [
+                'firstname' => $user->firstname,
+                'middlename' => $user->middlename,
+                'email' => $user->email,
+                'lastname' => $user->lastname,
+            ],
+            'profile_picture' => "http://localhost:8000/storage/profile_pictures/$user->profile_picture",
             'token' => $token->plainTextToken
         ];
     }
@@ -1156,7 +1087,7 @@ class ExecuteController extends Controller
         ];
     }
 
-    //elzaina
+    //elzaina works
     //create module
     public function createModule(Request $request)
     {
@@ -1365,5 +1296,140 @@ class ExecuteController extends Controller
         } else {
             return response()->json(['message' => 'Lesson not found'], 404);
         }
+    }
+
+    //Mark Workx
+
+    public function showMessages($id)
+    {
+        $messages = Message::join('rosters', 'messages.lrn', '=', 'rosters.lrn')
+            ->join('classes', 'rosters.classid', '=', 'classes.classid')
+            ->join('learners', 'learners.lrn', '=', 'messages.lrn')
+            ->where('classes.adminid', $id)
+            ->select('messages.*', 'learners.firstname', 'learners.lastname', 'learners.lrn', 'messages.sender_name')
+            ->orderBy('messages.updated_at', 'desc')
+            ->get();
+    
+        return response()->json($messages);
+    }   
+
+    public function getStudents($id)
+    {
+        $students = Learner::join('rosters', 'learners.lrn', '=', 'rosters.lrn')
+            ->join('classes', 'rosters.classid', '=', 'classes.classid')
+            ->where('classes.adminid', $id)
+            ->select('learners.studentid', 'learners.firstname', 'learners.lastname', 'learners.lrn')
+            ->distinct()
+            ->get();     
+        return response()->json($students);
+    }
+
+    public function sendReply(Request $request)
+    {
+        $validatedData = $request->validate([
+            'lrn' => 'required|exists:learners,lrn',
+            'messages' => 'required|string',
+            'adminID' => 'required|exists:admins,adminid',
+        ]);
+
+        // Fetch admin details
+        $admin = Admin::find($validatedData['adminID']);
+
+        // Update or create the message
+        $message = Message::where('lrn', $validatedData['lrn'])
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if ($message) {
+            $message->messages = $validatedData['messages'];
+            $message->adminID = $validatedData['adminID'];
+            $message->sender_name = $admin->firstname . ' ' . $admin->lastname; // Add sender name
+            $message->updated_at = now();
+            $message->save();
+        } else {
+            $message = new Message();
+            $message->lrn = $validatedData['lrn'];
+            $message->adminID = $validatedData['adminID'];
+            $message->messages = $validatedData['messages'];
+            $message->sender_name = $admin->firstname . ' ' . $admin->lastname; // Add sender name
+            $message->save();
+        }
+
+        return response()->json(['message' => 'Reply sent successfully!'], 200);
+    }
+
+    public function sendMessage(Request $request)
+    {
+        $validatedData = $request->validate([
+            'lrn' => 'required|exists:learners,lrn',
+            'messages' => 'required|string',
+            'adminID' => 'required|exists:admins,adminid',
+        ]);
+
+        $admin = Admin::find($validatedData['adminID']);
+
+        $message = new Message();
+        $message->lrn = $validatedData['lrn'];
+        $message->adminID = $validatedData['adminID'];
+        $message->messages = $validatedData['messages'];
+        $message->sender_name = $admin->firstname . ' ' . $admin->lastname; // Store sender's name
+        $message->save();
+
+        return response()->json(['message' => 'Message sent successfully!'], 200);
+    }
+
+    public function uploadProfilePicture(Request $request, $id)
+    {
+        $request->validate([
+            // 'adminID' => 'required',
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
+        ]);
+
+        // $id = $request->input('id');
+
+        if($request->hasFile('profile_picture')){
+            $filePath = $request->file('profile_picture')->store('profile_pictures', 'public');
+
+            $fileName = basename($filePath);
+
+            $destinationPath = public_path('storage/profile_pictures');
+            $request->file('profile_picture')->move($destinationPath, $fileName);
+
+            DB::table('admins')->updateOrInsert(
+                ['adminID' => $id],
+                ['profile_picture' => $fileName]
+            );
+            // Admin::updateOrInsert(
+            //     ['adminID' => $id],
+            //     ['profile_picture' => $fileName]
+            // );
+
+            return  response()->json(['message' => 'Profile picture updated successfully', 'image_name' => $fileName], 200);
+        } else {
+            return response()->json(['error' => 'No File Uploaded'], 400);
+        }
+    }
+
+    public function updateAdminPassword(Request $request, $id)
+    {
+        $request->validate([
+            'oldpassword' => 'required|string',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $admin = Admin::where('adminID', $id)->first();
+
+        if(!$admin){
+            return response()->json(['message' => 'Admin Not Found'], 404);
+        }
+
+        if(!Hash::check($request->oldpassword, $admin->password)){
+            return response()->json(['message' => 'Old password does not match'], 400);
+        }
+
+        $admin->password = Hash::make($request->password);
+        $admin->save();
+
+        return response()->json(['message' => 'Password updated successfully'], 200);
     }
 }

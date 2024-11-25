@@ -57,6 +57,7 @@ return new class extends Migration
             $table->string('mobile_number');
             $table->string('role');
             $table->string('email')->unique();
+            $table->string('profile_picture');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
