@@ -24,6 +24,7 @@ return new class extends Migration
             $table->string('religion')->nullable();
             $table->string('civil_status');
             $table->string('education')->nullable();
+            $table->string('program')->nullable();
             $table->string('contact_numbers')->nullable();
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
@@ -150,8 +151,8 @@ return new class extends Migration
             $table->id('assessmentid');
             $table->unsignedBigInteger('lesson_id');
             $table->string('title');
-            $table->text('instruction');
-            $table->text('description');
+            $table->longText('instruction');
+            $table->longText('description');
             $table->date('due_date');
             $table->timestamps();
         });

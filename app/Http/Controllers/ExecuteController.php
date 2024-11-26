@@ -97,8 +97,8 @@ class ExecuteController extends Controller
         $validatedData = $request->validate([
             'lesson_id' => 'required|integer',
             'title' => 'required|string|max:255',
-            'instruction' => 'required|string|max:255',
-            'description' => 'required|string|max:255',
+            'instruction' => 'required|string',
+            'description' => 'required|string',
             'due_date' => 'date',
         ]);
 

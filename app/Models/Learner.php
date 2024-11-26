@@ -30,6 +30,7 @@ class Learner extends Authenticatable
         'religion',
         'civil_status',
         'education',
+        'program',
         'contact_numbers',
         'email',
         'password',
