@@ -38,7 +38,7 @@ Route::middleware(['auth:sanctum'])->group(function(){
         Route::put('/assessment/update-due-date/{assessmentID}', [ExecuteController::class, 'updateDueDate']);
         Route::get('/subjects/assessment', [ExecuteController::class, 'showAssessment']);
         Route::get('/subjects/showAssessment/{id}', [ExecuteController::class, 'showAssessmentDetails']);
-        route::get('/subjects/getCompleted/{id}', [ExecuteController::class, 'getCompletionStats']);
+        route::get('/subjects/getCompleted/{id}/{cid}', [ExecuteController::class, 'getCompletionStats']);
         Route::get('/subjects/students/{id}/{assid}', [ExecuteController::class, 'showStudents']);
         Route::post('/subjects/autocheck/{id}/{assid}', [ExecuteController::class, 'autoCheck']);
         Route::post('/subjects/submitScore', [ExecuteController::class, 'submitScore']);

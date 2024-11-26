@@ -350,10 +350,13 @@ class ExecuteController extends Controller
         ]);
     }
 
-    public function getCompletionStats($id)
+    public function getCompletionStats($id, $cid)
     {
         // Get the total number of students in the assessment (for the class or course)
-        $totalStudents = Learner::count();
+        $totalStudents = Learner::join('rosters', 'learners.lrn', '=', 'rosters.lrn')
+                            ->join('classes', 'rosters.classid', '=', 'classes.classid')
+                            ->where('classes.classid', $cid) // Replace $id with the specific class ID
+                            ->count();
 
         // Get distinct students who submitted answers to the assessment
         $studentsWithAnswers = Answer::whereIn('question_id', function($query) use ($id) {
@@ -1340,13 +1343,6 @@ class ExecuteController extends Controller
             $message->adminID = $validatedData['adminID'];
             $message->sender_name = $admin->firstname . ' ' . $admin->lastname; // Add sender name
             $message->updated_at = now();
-            $message->save();
-        } else {
-            $message = new Message();
-            $message->lrn = $validatedData['lrn'];
-            $message->adminID = $validatedData['adminID'];
-            $message->messages = $validatedData['messages'];
-            $message->sender_name = $admin->firstname . ' ' . $admin->lastname; // Add sender name
             $message->save();
         }
 
