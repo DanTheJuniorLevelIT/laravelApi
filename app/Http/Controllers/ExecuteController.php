@@ -1007,9 +1007,9 @@ class ExecuteController extends Controller
 
     public function registerLearner(Request $request){
         $formField = $request->validate([
-            'lrn' => 'required|string|max:255',
+            'lrn' => 'nullable|string|max:255',
             'firstname' => 'required|string|max:255',
-            'middlename' => 'required|string|max:255',
+            'middlename' => 'nullable|string|max:255',
             'lastname' => 'required|string|max:255',
             'extension_name' => 'nullable|string|max:255',
             'birthdate' => 'required|date',
