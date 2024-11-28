@@ -17,7 +17,8 @@ class Learner extends Authenticatable
      *
      * @var array<int, string>
      */
-    protected $primaryKey = 'studentid';
+    // protected $primaryKey = 'studentid';
+    protected $primaryKey = 'lrn';
     protected $fillable = [
         'lrn',
         'firstname',
