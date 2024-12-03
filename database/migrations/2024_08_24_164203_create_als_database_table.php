@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('placeofbirth');
             $table->string('religion')->nullable();
             $table->string('civil_status');
-            $table->string('education')->nullable();
+            $table->string('last_education')->nullable();
             $table->string('program')->nullable();
             $table->string('contact_numbers')->nullable();
             $table->string('email')->unique();
@@ -154,6 +154,7 @@ return new class extends Migration
             $table->longText('instruction');
             $table->longText('description');
             $table->date('due_date');
+            $table->boolean('available')->default(0)->change();
             $table->timestamps();
         });
 

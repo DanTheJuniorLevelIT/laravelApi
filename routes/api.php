@@ -15,12 +15,15 @@ Route::post('/registerAdmin', [ExecuteController::class, 'registerAdmin']);
 Route::post('/registerLearner', [ExecuteController::class, 'registerLearner']);
 Route::post('/loginLearner', [ExecuteController::class, 'loginLearner']);
 Route::post('/loginAdmin', [ExecuteController::class, 'loginAdmin']);
+Route::post('/sendResetCode', [ExecuteController::class, 'resetCode']);
 
 Route::middleware(['auth:sanctum'])->group(function(){
     Route::middleware(['teacher'])->group(function(){
         Route::get('/teacherSub/{id}', [ExecuteController::class, 'teacherSubjects']);
         Route::post('/subjects/createDiscuss', [ExecuteController::class, 'createDiscussion']);
         Route::post('/subjects/create', [ExecuteController::class, 'createAssessment']);
+        Route::get('/subjects/assessments/{id}', [ExecuteController::class, 'getSingleAssessment']);
+        Route::post('/subjects/assessments/{id}', [ExecuteController::class, 'updateAssessment']);
         Route::post('/subjects/createQuestion', [ExecuteController::class, 'createQuestion']);
         Route::post('/subjects/createAnnouncement', [ExecuteController::class, 'createAnnouncement']);
         Route::put('/subjects/editQuestion/{id}', [ExecuteController::class, 'editQuestion']);
@@ -35,11 +38,14 @@ Route::middleware(['auth:sanctum'])->group(function(){
         Route::get('/subjects/discussion/{id}', [ExecuteController::class, 'countDiscussion']);
         Route::get('/subjects/discussion/replies/{discussionid}', [ExecuteController::class, 'viewDiscussionReplies']);
         Route::post('/subjects/discussion/reply', [ExecuteController::class, 'sendDiscussionReplies']);
-        Route::put('/assessment/update-due-date/{assessmentID}', [ExecuteController::class, 'updateDueDate']);
+        Route::put('/assessment/updateAvailability/{assessmentID}', [ExecuteController::class, 'updateAvailability']);
         Route::get('/subjects/assessment', [ExecuteController::class, 'showAssessment']);
         Route::get('/subjects/showAssessment/{id}', [ExecuteController::class, 'showAssessmentDetails']);
+        Route::get('/subjects/getStudentsByClass/{cid}', [ExecuteController::class, 'getStudentsByClass']);
+        Route::get('/subjects/getAssessmentsByClass/{cid}', [ExecuteController::class, 'getAssessmentsByClass']);
         route::get('/subjects/getCompleted/{id}/{cid}', [ExecuteController::class, 'getCompletionStats']);
         Route::get('/subjects/students/{id}/{assid}', [ExecuteController::class, 'showStudents']);
+        Route::get('/subjects/assessTotalPoints/{aid}', [ExecuteController::class, 'assessmentTotalPoints']);
         Route::post('/subjects/autocheck/{id}/{assid}', [ExecuteController::class, 'autoCheck']);
         Route::post('/subjects/submitScore', [ExecuteController::class, 'submitScore']);
         Route::post('/subjects/updateScore', [ExecuteController::class, 'updateAssessScore']);

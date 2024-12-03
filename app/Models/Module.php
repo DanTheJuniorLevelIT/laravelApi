@@ -17,4 +17,9 @@ class Module extends Model
         'description',
         'date'
     ];
+
+    public function lessons()
+    {
+        return $this->hasMany(Lesson::class, 'module_id', 'modules_id');
+    }
 }

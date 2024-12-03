@@ -24,8 +24,10 @@ use App\Models\Module;
 use App\Models\Answer;
 use App\Models\Assessment_Answer;
 use App\Models\Roster;
+use App\Mail\ResetPasswordMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -39,10 +41,6 @@ class ExecuteController extends Controller
     public function index()
     {
         //
-
-        // Get the currently logged-in teacher's ID (assuming the teacher is logged in)
-        // $teacherId = auth('admin')->user()->adminID;  // Adjust this according to how you're handling authentication
-    
         // Get today's day name (e.g., 'Monday', 'Tuesday', etc.)
         $today = date('l');
 
@@ -94,12 +92,21 @@ class ExecuteController extends Controller
     public function createAssessment(Request $request)
     {
         //
+        // Validate the request data
         $validatedData = $request->validate([
             'lesson_id' => 'required|integer',
             'title' => 'required|string|max:255',
             'instruction' => 'required|string',
             'description' => 'required|string',
-            'due_date' => 'date',
+            'due_date' => [
+                'required', 
+                'date', 
+                function ($attribute, $value, $fail) {
+                    if (strtotime($value) < strtotime(date('Y-m-d'))) {
+                        $fail('The due date cannot be earlier than today.');
+                    }
+                },
+            ],
         ]);
 
         $assess = Assessment::create($validatedData);
@@ -224,7 +231,6 @@ class ExecuteController extends Controller
             'announce' => $announce,
             'announceid' => (int)$announceid,
         ];
-        // return response()->json($announce);
 
     }
     // public function show(Execute $id)
@@ -350,6 +356,68 @@ class ExecuteController extends Controller
         ]);
     }
 
+    public function getStudentsByClass($cid){
+        $Students = Learner::join('rosters', 'learners.lrn', '=', 'rosters.lrn')
+                            ->join('classes', 'rosters.classid', '=', 'classes.classid')
+                            ->where('classes.classid', $cid) // Replace $id with the specific class ID
+                            ->get();
+
+        $totalStudents = Learner::join('rosters', 'learners.lrn', '=', 'rosters.lrn')
+                            ->join('classes', 'rosters.classid', '=', 'classes.classid')
+                            ->where('classes.classid', $cid) // Replace $id with the specific class ID
+                            ->count();
+
+        return response()->json([
+                    'allStudents' => $Students,
+                    'total' => $totalStudents
+                ], 200);
+    }
+
+    public function assessmentTotalPoints($aid){
+        $totalPoints = Question::where('assessment_id', $aid)->sum('points');
+
+        return $totalPoints;
+    }
+
+    public function getAssessmentsByClass($cid)
+    {
+        // Retrieve modules associated with the given class ID
+        $modules = Module::where('classid', $cid)
+        ->with([
+            'lessons.assessments' => function ($query) {
+                $query->select('assessmentid', 'lesson_id', 'title', 'instruction', 'description', 'due_date', 'created_at')
+                ->orderBy('created_at', 'desc'); // Order by created_at in descending order;
+            }
+        ])
+        ->get();
+
+        // Transform the data for easier frontend usage
+        $result = $modules->map(function ($module) {
+            return [
+                'module_id' => $module->modules_id,
+                'module_title' => $module->title,
+                'lessons' => $module->lessons->map(function ($lesson) {
+                    return [
+                        'lesson_id' => $lesson->lesson_id,
+                        'lesson_title' => $lesson->topic_title,
+                        'assessments' => $lesson->assessments->map(function ($assessment) {
+                            return [
+                                'assessment_id' => $assessment->assessmentid,
+                                'title' => $assessment->title,
+                                'instruction' => $assessment->instruction,
+                                'description' => $assessment->description,
+                                'due_date' => $assessment->due_date,
+                                'formatted_due_date' => \Carbon\Carbon::parse($assessment->due_date)->format('F j, Y'),
+                            ];
+                        })
+                    ];
+                })
+            ];
+        });
+
+        return response()->json($result);
+    }
+
     public function getCompletionStats($id, $cid)
     {
         // Get the total number of students in the assessment (for the class or course)
@@ -398,12 +466,6 @@ class ExecuteController extends Controller
             ->select('learners.lrn', 'learners.firstname', 'learners.lastname')
             ->get();
 
-        // $learnersScores = Roster::where('classid', $classid)
-        //     ->leftJoin('learners', 'rosters.lrn', '=', 'learners.lrn')
-        //     ->leftJoin('assessment_answers', 'rosters.lrn', '=', 'assessment_answers.lrn')
-        //     ->leftJoin('assessments', 'assessment_answers.assessmentid', '=', 'assessments.assessmentid')
-        //     ->select('learners.lrn', 'learners.firstname', 'learners.lastname', 'assessment_answers.score', 'assessment_answers.file')
-        //     ->get();
         // Get the learners' scores and completion status for this assessment
         $learnersScores = Roster::where('rosters.classid', $classid)
         ->leftJoin('learners', 'rosters.lrn', '=', 'learners.lrn')
@@ -710,35 +772,6 @@ class ExecuteController extends Controller
         return response()->json($replies);
     }
 
-    // Cache
-    // public function viewDiscussionReplies($discussionid)
-    // {
-    //     $cacheKey = "discussion_replies_{$discussionid}";
-    //     $cacheDuration = 20; // Cache duration in seconds (align with Angular's interval)
-
-    //     $replies = Cache::remember($cacheKey, $cacheDuration, function () use ($discussionid) {
-    //         return Discussion_Reply::where('discussionid', $discussionid)
-    //             ->leftJoin('admins', 'discussion_replies.adminID', '=', 'admins.adminID') // Join with the Admins table
-    //             ->leftJoin('learners', 'discussion_replies.lrn', '=', 'learners.lrn') // Join with the Learners table
-    //             ->select(
-    //                 'discussion_replies.reply',
-    //                 'discussion_replies.lrn',
-    //                 'admins.firstname as teacher_firstname', 
-    //                 'admins.lastname as teacher_lastname',
-    //                 'learners.firstname as student_firstname',
-    //                 'learners.lastname as student_lastname'
-    //             )
-    //             ->orderBy('discussion_replies.created_at', 'asc')
-    //             ->get();
-    //     });
-
-    //     return response()->json($replies);
-    // }
-
-
-
-
-
     // Store a new discussion reply
     public function sendDiscussionReplies(Request $request)
     {
@@ -859,17 +892,17 @@ class ExecuteController extends Controller
         ], 200);
     }
 
-    public function updateDueDate(Request $request, $assessmentID)
+    public function updateAvailability(Request $request, $assessmentID)
     {
         // Validate new due date
         $request->validate([
-            'due_date' => 'required|date'
+            'available' => 'required|boolean'
         ]);
 
         // Update the due date of the assessment
         DB::table('assessments')
             ->where('assessmentID', $assessmentID)
-            ->update(['Due_date' => $request->due_date]);
+            ->update(['available' => $request->available]);
 
         return response()->json(['message' => 'Due date updated successfully']);
     }
@@ -963,10 +996,7 @@ class ExecuteController extends Controller
 
     public function showAssessment()
     {
-        // Get the current date
-        $currentDate = now()->format('Y-m-d');
-
-        // Fetch assessments and check if the due date matches the current date
+        // Fetch assessments with their current availability status
         $assess = DB::table('assessments')
             ->leftJoin('lessons', 'assessments.lesson_id', '=', 'lessons.lesson_id')
             ->select(
@@ -976,8 +1006,8 @@ class ExecuteController extends Controller
                 'assessments.Description',
                 'assessments.lesson_id',
                 'assessments.Due_date',
-                DB::raw('DATE_FORMAT(assessments.Due_date, "%M %d, %Y") as formatted_due_date'),
-                DB::raw("IF(assessments.Due_date = '$currentDate', 0, 1) as isOpen") // 0 for closed, 1 for open
+                'assessments.available', // Include availability status
+                DB::raw('DATE_FORMAT(assessments.Due_date, "%M %d, %Y") as formatted_due_date')
             )
             ->get();
 
@@ -986,7 +1016,30 @@ class ExecuteController extends Controller
 
     // Login Function
 
-    public function registerAdmin(Request $request){
+    public function resetCode(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        // Check if the email exists in the database
+        $user = Admin::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json(['error' => 'Email not found'], 404);
+        }
+
+        // Generate reset token
+        $resetCode = rand(100000, 999999); // Example: Generate a 6-digit code
+
+        // Save code to the user record (or a separate table)
+        $user->update(['reset_code' => $resetCode]);
+
+        // Send email
+        Mail::to($request->email)->send(new ResetPasswordMail($resetCode));
+
+        return response()->json(['message' => 'Reset code sent successfully']);
+    }
+
+    public function registerAdmin(Request $request)
+    {
         $formField = $request->validate([
             'firstname' => 'required|string|max:255',
             'middlename' => 'required|string|max:255',
@@ -1005,7 +1058,8 @@ class ExecuteController extends Controller
         return 'registered';
     }
 
-    public function registerLearner(Request $request){
+    public function registerLearner(Request $request)
+    {
         $formField = $request->validate([
             'lrn' => 'nullable|string|max:255',
             'firstname' => 'required|string|max:255',
@@ -1026,7 +1080,8 @@ class ExecuteController extends Controller
         return 'registered';
     }
 
-    public function loginAdmin(Request $request){
+    public function loginAdmin(Request $request)
+    {
         $request->validate([
             'email' => 'required|email|exists:admins',
             'password' => 'required'
@@ -1052,12 +1107,16 @@ class ExecuteController extends Controller
                 'email' => $user->email,
                 'lastname' => $user->lastname,
             ],
+            //Local
             'profile_picture' => "http://localhost:8000/storage/profile_pictures/$user->profile_picture",
+            //Server
+            // 'profile_picture' => "http://10.0.118.175:8000/storage/profile_pictures/$user->profile_picture",
             'token' => $token->plainTextToken
         ];
     }
 
-    public function loginLearner(Request $request){
+    public function loginLearner(Request $request)
+    {
         $request->validate([
             'email' => 'required|email|exists:learners',
             'password' => 'required'
@@ -1093,7 +1152,15 @@ class ExecuteController extends Controller
             'classid' => 'required|integer',
             'title' => 'required|string',
             'description' => 'required|string',
-            'date' => 'required|string',
+            'date' => [
+                'required', 
+                'date', 
+                function ($attribute, $value, $fail) {
+                    if (strtotime($value) < strtotime(date('Y-m-d'))) {
+                        $fail('The due date cannot be earlier than today.');
+                    }
+                },
+            ],
         ]);
 
         $modules = Module::create($validatedData);
@@ -1104,10 +1171,6 @@ class ExecuteController extends Controller
 
     public function showModulesDetails($id)
     {
-        // $mods = DB::table('modules')
-        // ->select('modules.*')
-        // ->where('modules.classid', $id)
-        // ->get(); // Fetches all matching modules
         $mods = Module::where('classid', $id)
                         ->orderBy('date', 'desc')
                         ->get(); // Fetches all matching modules
@@ -1167,6 +1230,7 @@ class ExecuteController extends Controller
                 'lessons.lesson',
                 'lessons.handout',
                 'lessons.file',
+                'lessons.created_at',
                 DB::raw('GROUP_CONCAT(media.filename) as media_files'), // Concatenate media filenames
                 DB::raw('GROUP_CONCAT(media.media_id) as media_ids') // Concatenate media IDs
             )
@@ -1178,6 +1242,7 @@ class ExecuteController extends Controller
                 'lessons.lesson',
                 'lessons.handout',
                 'lessons.file',
+                'lessons.created_at'
             )  // Add all selected columns to GROUP BY
             ->get();
 
@@ -1224,6 +1289,34 @@ class ExecuteController extends Controller
         $lesson->save();
 
         return response()->json(['message' => 'Lesson updated successfully']);
+    }
+
+    public function getSingleAssessment($id)
+    {
+        $assessment = DB::table('assessments')->where('assessmentID', $id)->first();
+        return $assessment;
+    }
+
+    public function updateAssessment(Request $request, $id)
+    {
+        $validatedData = $request->validate([
+            'title' => 'required|string',
+            'instruction' => 'required|string',
+            'description' => 'required|string',
+            'due_date' => 'required|date',
+        ]);
+
+        DB::table('assessments')
+            ->where('assessmentID', $id)
+            ->update([
+                'title' => $validatedData['title'],
+                'instruction' => $validatedData['instruction'],
+                'description' => $validatedData['description'],
+                'due_date' => $validatedData['due_date'],
+                'updated_at' => now(),
+            ]);
+
+        return response()->json(['message' => 'Assessment updated successfully']);
     }
 
     public function deleteLesson($id)
@@ -1304,8 +1397,8 @@ class ExecuteController extends Controller
             ->join('classes', 'rosters.classid', '=', 'classes.classid')
             ->join('learners', 'learners.lrn', '=', 'messages.lrn')
             ->where('classes.adminid', $id)
-            ->select('messages.*', 'learners.firstname', 'learners.lastname', 'learners.lrn', 'messages.sender_name')
-            ->orderBy('messages.updated_at', 'desc')
+            ->select('messages.*', 'learners.firstname', 'learners.lastname', 'learners.lrn')
+            ->orderBy('messages.created_at', 'desc')
             ->get();
     
         return response()->json($messages);
@@ -1328,23 +1421,26 @@ class ExecuteController extends Controller
             'lrn' => 'required|exists:learners,lrn',
             'messages' => 'required|string',
             'adminID' => 'required|exists:admins,adminid',
+            'mid' => 'required'
         ]);
 
-        // Fetch admin details
         $admin = Admin::find($validatedData['adminID']);
 
-        // Update or create the message
-        $message = Message::where('lrn', $validatedData['lrn'])
-            ->orderBy('created_at', 'desc')
-            ->first();
-
-        if ($message) {
-            $message->messages = $validatedData['messages'];
-            $message->adminID = $validatedData['adminID'];
-            $message->sender_name = $admin->firstname . ' ' . $admin->lastname; // Add sender name
-            $message->updated_at = now();
-            $message->save();
+        $reply = Message::where('messageid', $validatedData['mid'])
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+        
+        if($reply){
+            $reply->sender_name = $admin->firstname . ' '. $admin->lastname;
+            $reply->save();
         }
+        
+        $message = new Message();
+        $message->lrn = $validatedData['lrn'];
+        $message->adminID = $validatedData['adminID'];
+        $message->messages = $validatedData['messages'];
+        $message->sender_name = $admin->firstname . ' '. $admin->lastname;
+        $message->save();
 
         return response()->json(['message' => 'Reply sent successfully!'], 200);
     }
@@ -1405,7 +1501,7 @@ class ExecuteController extends Controller
     {
         $request->validate([
             'oldpassword' => 'required|string',
-            'password' => 'required|string|min:6|confirmed',
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
         $admin = Admin::where('adminID', $id)->first();

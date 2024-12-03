@@ -17,4 +17,9 @@ class Lesson extends Model
         'handout',
         'file'
     ];
+    
+    public function assessments()
+    {
+        return $this->hasMany(Assessment::class, 'lesson_id', 'lesson_id');
+    }
 }
