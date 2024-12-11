@@ -1,4 +1,4 @@
-<?php
+a<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -24,7 +24,6 @@ return new class extends Migration
             $table->string('religion')->nullable();
             $table->string('civil_status');
             $table->string('last_education')->nullable();
-            $table->string('program')->nullable();
             $table->string('contact_numbers')->nullable();
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
@@ -37,8 +36,8 @@ return new class extends Migration
         Schema::create('enrollees', function (Blueprint $table) {
             $table->id('enrolID');
             $table->string('lrn');
-            $table->string('program');
-            $table->string('status');
+            $table->string('program')->nullable();
+            $table->boolean('status')->default(1)->change();
             $table->string('school_year');
             $table->date('enrolldate');
             $table->timestamps();
@@ -55,7 +54,7 @@ return new class extends Migration
             $table->string('mobile_number');
             $table->string('role');
             $table->string('email')->unique();
-            $table->string('profile_picture');
+            $table->string('profile_picture')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();

@@ -45,6 +45,7 @@ Route::middleware(['auth:sanctum'])->group(function(){
         Route::get('/subjects/getAssessmentsByClass/{cid}', [ExecuteController::class, 'getAssessmentsByClass']);
         route::get('/subjects/getCompleted/{id}/{cid}', [ExecuteController::class, 'getCompletionStats']);
         Route::get('/subjects/students/{id}/{assid}', [ExecuteController::class, 'showStudents']);
+        Route::get('/subjects/learnerassessments/{lrn}/{cid}', [ExecuteController::class, 'getLearnerAssessments']);
         Route::get('/subjects/assessTotalPoints/{aid}', [ExecuteController::class, 'assessmentTotalPoints']);
         Route::post('/subjects/autocheck/{id}/{assid}', [ExecuteController::class, 'autoCheck']);
         Route::post('/subjects/submitScore', [ExecuteController::class, 'submitScore']);
@@ -65,6 +66,7 @@ Route::middleware(['auth:sanctum'])->group(function(){
         Route::delete('/modules/deleteFile/{id}', [ExecuteController::class, 'deleteFile']);
         Route::delete('/modules/deleteMediaFile/{id}', [ExecuteController::class, 'deleteMediaFile']);
         //mark works
+        Route::get('/messages/conversation/{id}', [ExecuteController::class, 'viewConvo']);
         Route::get('/messages/{id}', [ExecuteController::class, 'showMessages']);
         Route::get('/students/{id}', [ExecuteController::class, 'getStudents']);
         Route::post('/messages/reply', [ExecuteController::class, 'sendReply']);

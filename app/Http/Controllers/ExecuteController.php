@@ -356,22 +356,122 @@ class ExecuteController extends Controller
         ]);
     }
 
-    public function getStudentsByClass($cid){
-        $Students = Learner::join('rosters', 'learners.lrn', '=', 'rosters.lrn')
-                            ->join('classes', 'rosters.classid', '=', 'classes.classid')
-                            ->where('classes.classid', $cid) // Replace $id with the specific class ID
-                            ->get();
+    public function getStudentsByClass($cid)
+    {
+        // Fetch all students in the class
+        $students = Learner::join('rosters', 'learners.lrn', '=', 'rosters.lrn')
+            ->join('classes', 'rosters.classid', '=', 'classes.classid')
+            ->where('classes.classid', $cid)
+            ->select('learners.lrn', 'learners.firstname', 'learners.lastname', 'learners.gender', 'learners.birthdate', 'learners.contact_numbers', 'classes.classid')
+            ->get();
 
-        $totalStudents = Learner::join('rosters', 'learners.lrn', '=', 'rosters.lrn')
-                            ->join('classes', 'rosters.classid', '=', 'classes.classid')
-                            ->where('classes.classid', $cid) // Replace $id with the specific class ID
-                            ->count();
+        // Fetch all assessments for the class
+        $totalAssessments = DB::table('assessments')
+            ->join('lessons', 'assessments.lesson_id', '=', 'lessons.lesson_id')
+            ->whereIn('lessons.module_id', function ($query) use ($cid) {
+                $query->select('modules_id')
+                    ->from('modules')
+                    ->where('classid', $cid);
+            })
+            ->count();
+
+        // Add completed assessments data for each student
+        // $studentsData = $students->map(function ($student) use ($totalAssessments) {
+        //     $completedAssessments = DB::table('assessment_answers')
+        //             ->where('lrn', $student->lrn)
+        //             ->whereIn('assessmentid', function ($query) use ($student) {
+        //                 $query->select('assessmentid')
+        //                     ->from('assessments')
+        //                     ->join('lessons', 'assessments.lesson_id', '=', 'lessons.lesson_id')
+        //                     ->whereIn('lessons.module_id', function ($subquery) use ($student) {
+        //                         $subquery->select('modules_id')
+        //                             ->from('modules')
+        //                             ->where('classid', $student->classid);
+        //                     });
+        //             })
+        //             ->where('score', '>=', 0) // Ensure only    `assessments with a positive score are considered completed
+        //             ->distinct()
+        //             ->count();
+
+        //     return [
+        //         'lrn' => $student->lrn,
+        //         'firstname' => $student->firstname,
+        //         'lastname' => $student->lastname,
+        //         'gender' => $student->gender,
+        //         'birthdate' => $student->birthdate,
+        //         'contact_numbers' => $student->contact_numbers,
+        //         'completed_assessments' => $completedAssessments,
+        //         'total_assessments' => $totalAssessments,
+        //     ];
+        // });
+
+        $studentsData = $students->map(function ($student) use ($totalAssessments) {
+            // Fetch assessments linked to the student’s class
+            $assessments = DB::table('assessments')
+                ->join('lessons', 'assessments.lesson_id', '=', 'lessons.lesson_id')
+                ->whereIn('lessons.module_id', function ($subquery) use ($student) {
+                    $subquery->select('modules_id')
+                        ->from('modules')
+                        ->where('classid', $student->classid);
+                })
+                ->select('assessments.assessmentid')
+                ->get();
+        
+            $completedAssessments = 0;
+        
+            foreach ($assessments as $assessment) {
+                // Fetch the total number of questions for the assessment
+                $totalQuestions = DB::table('questions')
+                    ->where('assessment_id', $assessment->assessmentid)
+                    ->count();
+        
+                // Fetch the number of questions answered by the student
+                $answeredQuestions = DB::table('answers')
+                    ->where('lrn', $student->lrn)
+                    ->whereIn('question_id', function ($query) use ($assessment) {
+                        $query->select('question_id')
+                            ->from('questions')
+                            ->where('assessment_id', $assessment->assessmentid);
+                    })
+                    ->count();
+        
+                // Fetch the score of the student for the assessment
+                $score = DB::table('assessment_answers')
+                    ->where('lrn', $student->lrn)
+                    ->where('assessmentid', $assessment->assessmentid)
+                    ->value('score');
+        
+                // Check if assessment is completed
+                $isCompleted = ($answeredQuestions === $totalQuestions) || $score !== null;
+        
+                if ($isCompleted) {
+                    $completedAssessments++;
+                }
+            }
+        
+            return [
+                'lrn' => $student->lrn,
+                'firstname' => $student->firstname,
+                'lastname' => $student->lastname,
+                'gender' => $student->gender,
+                'birthdate' => $student->birthdate,
+                'contact_numbers' => $student->contact_numbers,
+                'completed_assessments' => $completedAssessments,
+                'total_assessments' => $totalAssessments,
+            ];
+        });
+        
+
+        // Get the total number of students
+        $totalStudents = $students->count();
 
         return response()->json([
-                    'allStudents' => $Students,
-                    'total' => $totalStudents
-                ], 200);
+            'allStudents' => $studentsData,
+            'total_students' => $totalStudents,
+            'total_assessments' => $totalAssessments,
+        ], 200);
     }
+
 
     public function assessmentTotalPoints($aid){
         $totalPoints = Question::where('assessment_id', $aid)->sum('points');
@@ -511,6 +611,93 @@ class ExecuteController extends Controller
         ];
     }
 
+    public function getLearnerAssessments($lrn, $cid)
+    {
+        // Fetch learner details
+        $learner = DB::table('learners')
+            ->where('lrn', $lrn)
+            ->select('firstname', 'middlename', 'lastname')
+            ->first();
+
+        if (!$learner) {
+            return ['message' => 'Learner not found.'];
+        }
+
+        // Fetch the classes the learner is enrolled in
+        $classes = DB::table('rosters')
+            ->join('classes', 'rosters.classid', '=', 'classes.classid')
+            ->where('rosters.lrn', $lrn)
+            ->where('rosters.classid', $cid)
+            ->select('classes.classid', 'classes.schedule')
+            ->get();
+
+        // Prepare data for each class
+        $assessmentsData = [];
+
+        foreach ($classes as $class) {
+            // Fetch modules linked to the class
+            $modules = DB::table('modules')
+                ->where('classid', $class->classid)
+                ->pluck('modules_id');
+
+            // Fetch assessments linked to the lessons
+            $assessments = DB::table('assessments')
+                ->join('lessons', 'assessments.lesson_id', '=', 'lessons.lesson_id')
+                ->whereIn('lessons.module_id', $modules)
+                ->select('assessments.assessmentid', 'assessments.title', 'assessments.due_date', 'lessons.topic_title', 'lessons.module_id')
+                ->orderBy('assessments.due_date', 'asc')
+                ->get();
+
+            foreach ($assessments as $assessment) {
+                // Fetch the number of questions in the assessment
+                $totalQuestions = DB::table('questions')
+                    ->where('assessment_id', $assessment->assessmentid)
+                    ->count();
+
+                // Fetch learner's answers
+                $learnerAnswers = DB::table('answers')
+                    ->where('lrn', $lrn)
+                    ->whereIn('question_id', function ($query) use ($assessment) {
+                        $query->select('question_id')
+                            ->from('questions')
+                            ->where('assessment_id', $assessment->assessmentid);
+                    })
+                    ->count();
+
+                // Check if all questions are answered
+                $allQuestionsAnswered = $learnerAnswers === $totalQuestions;
+
+                // Fetch learner's score
+                $score = DB::table('assessment_answers')
+                    ->where('lrn', $lrn)
+                    ->where('assessmentid', $assessment->assessmentid)
+                    ->value('score');
+
+                // Determine status
+                $status = ($allQuestionsAnswered && $score > 0) ? 'Finish' : 'Not Finish';
+
+                $assessmentsData[] = [
+                    'class_schedule' => $class->schedule,
+                    'assessment_title' => $assessment->title,
+                    'lesson_title' => $assessment->topic_title,
+                    'assessID' => $assessment->assessmentid,
+                    'due_date' => $assessment->due_date,
+                    'status' => $status,
+                    'module_id' => $assessment->module_id,
+                    'score' => $score,
+                    'allQuestionsAnswered' => $allQuestionsAnswered,
+                ];
+            }
+        }
+
+        return [
+            'learner' => "{$learner->firstname} {$learner->middlename} {$learner->lastname}",
+            'assessments' => $assessmentsData,
+        ];
+    }
+
+
+
     //Working 2
     public function showStudentAnswers($assessmentId, $lrn)
     {
@@ -523,6 +710,10 @@ class ExecuteController extends Controller
         $studentAnswers = Answer::whereIn('question_id', $questions->pluck('question_id'))
                         ->where('lrn', $lrn)
                         ->get();
+
+        // $studentAnswers = $studentAnswers->map(function($item){
+        //     if()
+        // })
 
         // Fetch the total score directly from the Assessment_Answer table
         $studentScore = Assessment_Answer::where('lrn', $lrn)
@@ -617,35 +808,97 @@ class ExecuteController extends Controller
             return $learner;
         });
 
-        foreach ($learners as $learner) {
-            // If the learner has uploaded a file, skip score calculation
-            if (!is_null($learner->file)) {
-                continue;  // Skip to the next learner
-            }
+        // FIRST
+        // foreach ($learners as $learner) {
+        //     // If the learner has uploaded a file, skip score calculation
+        //     if (!is_null($learner->file)) {
+        //         continue;  // Skip to the next learner
+        //     }
 
-            $totalScore = 0;
-            $completed = true;
+        //     $totalScore = null;
+        //     $completed = true;
 
-                foreach ($questions as $question) {
-                    // Find the student's answer to the question
-                    $answer = Answer::where('lrn', $learner->lrn)
-                        ->where('question_id', $question->question_id)
-                        ->first();
+        //         foreach ($questions as $question) {
+        //             // Find the student's answer to the question
+        //             $answer = Answer::where('lrn', $learner->lrn)
+        //                 ->where('question_id', $question->question_id)
+        //                 ->first();
             
-                    if ($answer) {
-                        // Check if the answer matches the key answer and assign points
-                        if ($answer->answer == $question->key_answer) {
-                            $answer->score = $question->points; // Save the points to the answer
-                            // $answer->save(); // Save the updated answer with the score
-                            $answer->update(['score' => $question->points]);
-                            // $totalScore += $question->points;
-                        }
-                    } else {
-                        // Mark as incomplete if an answer is missing
-                        $completed = false;
-                    }
-                }
+        //             if ($answer) {
+        //                 // Check if the answer matches the key answer and assign points
+        //                 if ($answer->answer == $question->key_answer) {
+        //                     $answer->score = $question->points; // Save the points to the answer
+        //                     // $answer->save(); // Save the updated answer with the score
+        //                     $answer->update(['score' => $question->points]);
+        //                     // $totalScore += $question->points;
+        //                 }
+        //             } else {
+        //                 // Mark as incomplete if an answer is missing
+        //                 $completed = false;
+        //             }
+        //         }
 
+        //     $totalScore = Answer::where('lrn', $learner->lrn)
+        //         ->whereIn('question_id', function($query) use ($assessment_id) {
+        //             $query->select('question_id')
+        //                 ->from('questions')
+        //                 ->where('assessment_id', $assessment_id);
+        //         })
+        //         ->sum('score');
+
+        //     // Save the score in the Assessment_Answer table
+        //     Assessment_Answer::updateOrCreate(
+        //         ['lrn' => $learner->lrn, 'assessmentid' => $assessment_id],
+        //         ['score' => $totalScore, 'date_submission' => now()]
+        //     );
+
+        //     // Attach the score to the learner object
+        //     $learner->score = $totalScore;
+        // }
+
+        //SECOND
+        foreach ($learners as $learner) {
+            // Check if the learner has uploaded a file or has incomplete answers
+            $answersCount = Answer::where('lrn', $learner->lrn)
+                ->whereIn('question_id', function($query) use ($assessment_id) {
+                    $query->select('question_id')
+                        ->from('questions')
+                        ->where('assessment_id', $assessment_id);
+                })
+                ->count();
+        
+            $totalQuestions = Question::where('assessment_id', $assessment_id)->count();
+        
+            // Skip if the learner has not completed all answers or uploaded a file
+            if ($answersCount < $totalQuestions && is_null($learner->file)) {
+                continue; // Skip to the next learner
+            } else if (!is_null($learner->file)){
+                continue;
+            }
+        
+            // Initialize total score
+            $totalScore = 0;
+        
+            // Calculate the score for the completed answers
+            foreach ($questions as $question) {
+                $answer = Answer::where('lrn', $learner->lrn)
+                    ->where('question_id', $question->question_id)
+                    ->first();
+                    
+                if ($answer) {
+                    // Check if the answer matches the key answer and assign points
+                    if ($answer->answer == $question->key_answer) {
+                        $answer->score = $question->points; // Save the points to the answer
+                        // $answer->save(); // Save the updated answer with the score
+                        $answer->update(['score' => $question->points]);
+                        // $totalScore += $question->points;
+                    }
+                } else {
+                                // Mark as incomplete if an answer is missing
+                    $completed = false;
+                }
+            }
+        
             $totalScore = Answer::where('lrn', $learner->lrn)
                 ->whereIn('question_id', function($query) use ($assessment_id) {
                     $query->select('question_id')
@@ -653,16 +906,16 @@ class ExecuteController extends Controller
                         ->where('assessment_id', $assessment_id);
                 })
                 ->sum('score');
-
+        
             // Save the score in the Assessment_Answer table
             Assessment_Answer::updateOrCreate(
                 ['lrn' => $learner->lrn, 'assessmentid' => $assessment_id],
                 ['score' => $totalScore, 'date_submission' => now()]
             );
-
-            // Attach the score to the learner object
+        
+            // Attach the score to the learner object for further use
             $learner->score = $totalScore;
-        }
+        }        
 
         // Return learners with their scores
         return [
@@ -1042,7 +1295,7 @@ class ExecuteController extends Controller
     {
         $formField = $request->validate([
             'firstname' => 'required|string|max:255',
-            'middlename' => 'required|string|max:255',
+            'middlename' => 'nullable|string|max:255',
             'lastname' => 'required|string|max:255',
             'gender' => 'required|string|max:255',
             'birthdate' => 'required|date',
@@ -1068,7 +1321,7 @@ class ExecuteController extends Controller
             'extension_name' => 'nullable|string|max:255',
             'birthdate' => 'required|date',
             'placeofbirth' => 'nullable|string|max:255',
-            'education' => 'nullable|string|max:255',
+            'last_education' => 'nullable|string|max:255',
             'gender' => 'required|string',
             'civil_status' => 'required|string',
             'email' => 'required|email|unique:learners',
@@ -1157,7 +1410,7 @@ class ExecuteController extends Controller
                 'date', 
                 function ($attribute, $value, $fail) {
                     if (strtotime($value) < strtotime(date('Y-m-d'))) {
-                        $fail('The due date cannot be earlier than today.');
+                        $fail('The date cannot be earlier than today.');
                     }
                 },
             ],
@@ -1223,6 +1476,7 @@ class ExecuteController extends Controller
     {
             $lessons = DB::table('lessons')
             ->leftJoin('media', 'lessons.lesson_id', '=', 'media.lesson_id')
+            ->leftJoin('discussions', 'lessons.lesson_id', '=', 'discussions.lesson_id')
             ->select(
                 'lessons.lesson_id',
                 'lessons.module_id',
@@ -1232,7 +1486,8 @@ class ExecuteController extends Controller
                 'lessons.file',
                 'lessons.created_at',
                 DB::raw('GROUP_CONCAT(media.filename) as media_files'), // Concatenate media filenames
-                DB::raw('GROUP_CONCAT(media.media_id) as media_ids') // Concatenate media IDs
+                DB::raw('GROUP_CONCAT(media.media_id) as media_ids'), // Concatenate media IDs
+                DB::raw('COUNT(discussionid) as discussion_count') // Count discussions
             )
             ->where('lessons.module_id', $id)
             ->groupBy(
@@ -1393,16 +1648,50 @@ class ExecuteController extends Controller
 
     public function showMessages($id)
     {
-        $messages = Message::join('rosters', 'messages.lrn', '=', 'rosters.lrn')
+        $messages = DB::table('messages')
+            ->select(
+                DB::raw('messages.messageid'),
+                'messages.adminID',
+                'messages.lrn',
+                'messages.sender_name',
+                'messages.messages',
+                'messages.created_at',
+                'learners.firstname',
+                'learners.lastname'
+            )
+            ->join('rosters', 'messages.lrn', '=', 'rosters.lrn')
             ->join('classes', 'rosters.classid', '=', 'classes.classid')
             ->join('learners', 'learners.lrn', '=', 'messages.lrn')
             ->where('classes.adminid', $id)
-            ->select('messages.*', 'learners.firstname', 'learners.lastname', 'learners.lrn')
-            ->orderBy('messages.created_at', 'desc')
+            ->whereRaw('messages.created_at = (SELECT MAX(sub_messages.created_at) FROM messages AS sub_messages WHERE sub_messages.lrn = messages.lrn)')
+            ->orderBy('messages.created_at', 'DESC') // Ensure latest messages appear first
+            ->distinct()
             ->get();
+
     
         return response()->json($messages);
     }   
+
+    public function viewConvo($lrn)
+    {
+        $messages = DB::table('messages')
+        ->select(
+            'messages.messageid',
+            'messages.adminID',
+            'messages.lrn',
+            'messages.sender_name',
+            'messages.messages',
+            'messages.created_at',
+            'learners.firstname',
+            'learners.lastname'
+        )
+        ->join('learners', 'learners.lrn', '=', 'messages.lrn')
+        ->where('messages.lrn', $lrn)
+        ->orderBy('messages.created_at', 'ASC') // Order by oldest first for conversation flow
+        ->get();
+
+        return response()->json($messages);
+    }
 
     public function getStudents($id)
     {
@@ -1426,14 +1715,14 @@ class ExecuteController extends Controller
 
         $admin = Admin::find($validatedData['adminID']);
 
-        $reply = Message::where('messageid', $validatedData['mid'])
-                    ->orderBy('created_at', 'desc')
-                    ->first();
+        // $reply = Message::where('messageid', $validatedData['mid'])
+        //             ->orderBy('created_at', 'desc')
+        //             ->first();
         
-        if($reply){
-            $reply->sender_name = $admin->firstname . ' '. $admin->lastname;
-            $reply->save();
-        }
+        // if($reply){
+        //     $reply->sender_name = $admin->firstname . ' '. $admin->lastname;
+        //     $reply->save();
+        // }
         
         $message = new Message();
         $message->lrn = $validatedData['lrn'];

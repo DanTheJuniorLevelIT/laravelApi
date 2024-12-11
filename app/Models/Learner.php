@@ -30,7 +30,7 @@ class Learner extends Authenticatable
         'placeofbirth',
         'religion',
         'civil_status',
-        'education',
+        'last_education',
         'program',
         'contact_numbers',
         'email',
