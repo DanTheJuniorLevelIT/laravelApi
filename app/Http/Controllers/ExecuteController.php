@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Execute;
 use Exception;
-use App\Http\Controllers\Log;
 use App\Models\Subject;
 use App\Models\Assessment;
 use App\Models\Discussion;
@@ -27,6 +26,7 @@ use App\Models\Roster;
 use App\Mail\ResetPasswordMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -65,6 +65,32 @@ class ExecuteController extends Controller
                 ->select('classes.classid', 'subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.schedule', 'rooms.location')
                 ->where('classes.schedule', 'LIKE', '%' . $today . '%') // Filter based on today's day
                 ->get();
+
+        return $subject;
+    }
+
+    public function index2()
+    {
+        //
+        $dayOfWeek = date('N'); // Get the day of the week (1 = Monday, 7 = Sunday)
+
+        $program = '';
+
+        // Determine the program based on the current day
+        if ($dayOfWeek == 1) {
+            $program = 'blp';
+        } elseif (in_array($dayOfWeek, [2, 3])) {
+            $program = 'alsElem';
+        } elseif (in_array($dayOfWeek, [4, 5])) {
+            $program = 'aleJhs';
+        }
+
+        // Retrieve the subjects based on the program
+        $subject = DB::table('classes')
+            ->rightJoin('subjects', 'classes.subjectID', '=', 'subjects.subjectID')
+            ->select('subjects.subjectID', 'subjects.image', 'subjects.subject_name', 'classes.Schedule')
+            ->where('subjects.Program', '=', $program)
+            ->get();
 
         return $subject;
     }
@@ -376,79 +402,22 @@ class ExecuteController extends Controller
             ->count();
 
         // Add completed assessments data for each student
-        // $studentsData = $students->map(function ($student) use ($totalAssessments) {
-        //     $completedAssessments = DB::table('assessment_answers')
-        //             ->where('lrn', $student->lrn)
-        //             ->whereIn('assessmentid', function ($query) use ($student) {
-        //                 $query->select('assessmentid')
-        //                     ->from('assessments')
-        //                     ->join('lessons', 'assessments.lesson_id', '=', 'lessons.lesson_id')
-        //                     ->whereIn('lessons.module_id', function ($subquery) use ($student) {
-        //                         $subquery->select('modules_id')
-        //                             ->from('modules')
-        //                             ->where('classid', $student->classid);
-        //                     });
-        //             })
-        //             ->where('score', '>=', 0) // Ensure only    `assessments with a positive score are considered completed
-        //             ->distinct()
-        //             ->count();
-
-        //     return [
-        //         'lrn' => $student->lrn,
-        //         'firstname' => $student->firstname,
-        //         'lastname' => $student->lastname,
-        //         'gender' => $student->gender,
-        //         'birthdate' => $student->birthdate,
-        //         'contact_numbers' => $student->contact_numbers,
-        //         'completed_assessments' => $completedAssessments,
-        //         'total_assessments' => $totalAssessments,
-        //     ];
-        // });
-
         $studentsData = $students->map(function ($student) use ($totalAssessments) {
-            // Fetch assessments linked to the student’s class
-            $assessments = DB::table('assessments')
-                ->join('lessons', 'assessments.lesson_id', '=', 'lessons.lesson_id')
-                ->whereIn('lessons.module_id', function ($subquery) use ($student) {
-                    $subquery->select('modules_id')
-                        ->from('modules')
-                        ->where('classid', $student->classid);
-                })
-                ->select('assessments.assessmentid')
-                ->get();
-        
-            $completedAssessments = 0;
-        
-            foreach ($assessments as $assessment) {
-                // Fetch the total number of questions for the assessment
-                $totalQuestions = DB::table('questions')
-                    ->where('assessment_id', $assessment->assessmentid)
-                    ->count();
-        
-                // Fetch the number of questions answered by the student
-                $answeredQuestions = DB::table('answers')
+            $completedAssessments = DB::table('assessment_answers')
                     ->where('lrn', $student->lrn)
-                    ->whereIn('question_id', function ($query) use ($assessment) {
-                        $query->select('question_id')
-                            ->from('questions')
-                            ->where('assessment_id', $assessment->assessmentid);
+                    ->whereIn('assessmentid', function ($query) use ($student) {
+                        $query->select('assessmentid')
+                            ->from('assessments')
+                            ->join('lessons', 'assessments.lesson_id', '=', 'lessons.lesson_id')
+                            ->whereIn('lessons.module_id', function ($subquery) use ($student) {
+                                $subquery->select('modules_id')
+                                    ->from('modules')
+                                    ->where('classid', $student->classid);
+                            });
                     })
+                    ->distinct()
                     ->count();
-        
-                // Fetch the score of the student for the assessment
-                $score = DB::table('assessment_answers')
-                    ->where('lrn', $student->lrn)
-                    ->where('assessmentid', $assessment->assessmentid)
-                    ->value('score');
-        
-                // Check if assessment is completed
-                $isCompleted = ($answeredQuestions === $totalQuestions) || $score !== null;
-        
-                if ($isCompleted) {
-                    $completedAssessments++;
-                }
-            }
-        
+
             return [
                 'lrn' => $student->lrn,
                 'firstname' => $student->firstname,
@@ -460,7 +429,6 @@ class ExecuteController extends Controller
                 'total_assessments' => $totalAssessments,
             ];
         });
-        
 
         // Get the total number of students
         $totalStudents = $students->count();
@@ -711,10 +679,6 @@ class ExecuteController extends Controller
                         ->where('lrn', $lrn)
                         ->get();
 
-        // $studentAnswers = $studentAnswers->map(function($item){
-        //     if()
-        // })
-
         // Fetch the total score directly from the Assessment_Answer table
         $studentScore = Assessment_Answer::where('lrn', $lrn)
                         ->where('assessmentid', $assessmentId)
@@ -729,6 +693,8 @@ class ExecuteController extends Controller
         $response = [];
         foreach ($questions as $question) {
             $answer = $studentAnswers->firstWhere('question_id', $question->question_id);
+
+            $studentAnswer = $answer ? strip_tags($answer->answer) : null;
 
             // Use the score from the answer if available, otherwise default to 0
             $score = $answer ? $answer->score : 0;
@@ -746,7 +712,7 @@ class ExecuteController extends Controller
                 'type' => $question->type,
                 'options' => $question->options, // If applicable
                 'key_answer' => $question->key_answer, // Correct answer
-                'student_answer' => $answer ? $answer->answer : null,
+                'student_answer' => $studentAnswer,
                 'score' => $score, // Use the stored score from the database
                 'points' => $question->points,
                 'max_points' => $question->points // Maximum points for the question
@@ -1355,15 +1321,13 @@ class ExecuteController extends Controller
             'adminid' => $adminid,
             'role' => $role,
             'details' => [
+                'adminID' => $user->adminID,
                 'firstname' => $user->firstname,
                 'middlename' => $user->middlename,
                 'email' => $user->email,
                 'lastname' => $user->lastname,
             ],
-            //Local
             'profile_picture' => "http://localhost:8000/storage/profile_pictures/$user->profile_picture",
-            //Server
-            // 'profile_picture' => "http://10.0.118.175:8000/storage/profile_pictures/$user->profile_picture",
             'token' => $token->plainTextToken
         ];
     }
@@ -1425,26 +1389,41 @@ class ExecuteController extends Controller
     public function showModulesDetails($id)
     {
         $mods = Module::where('classid', $id)
-                        ->orderBy('date', 'desc')
+                        ->orderBy('date', 'asc')
                         ->get(); // Fetches all matching modules
 
         return response()->json($mods);
     }
 
-    public function updateModuleDate(Request $request, $id)
-    {
-        // Fetch the module by ID
-        $module = Module::find($id);
+    public function updateModuleDate(Request $request, $id) {
+        // Log the incoming data
+        Log::info('Request Data:', $request->all());
+        
+        $validatedData = $request->validate([
+            'title' => 'required', // Validate that 'date' is a valid date
+            'description' => 'required', // Validate that 'date' is a valid date
+            'date' => 'required|date', // Validate that 'date' is a valid date
+        ]);
 
-        // Update the date to today's date
-        $module->date = $request->date;
-
-        // Save the changes
-        $module->save();
-
-        return response()->json(['message' => 'Module date updated successfully.']);
+        
+    
+        // Attempt to update the module's date
+        $affectedRows = DB::table('modules')
+            ->where('modules_id', $id)
+            ->update([
+                'title' => $request->title, 
+                'description' => $request->description, 
+                'date' => $request->date
+            ]);
+    
+        // Check if any rows were affected
+        if ($affectedRows === 0) {
+            return response()->json(['success' => false, 'message' => 'Module not found or no changes made'], 404);
+        }
+    
+        return response()->json(['success' => true, 'message' => 'Module date updated successfully']);
     }
-
+    
 
     //createLesson
     //create module
@@ -1634,8 +1613,6 @@ class ExecuteController extends Controller
     {
         $media = Media::find($id);
         if ($media) {
-            // Update the file field to null
-            // $media->file = null;
             $media->delete();
 
             return response()->json(['message' => 'File deleted successfully'], 200);
@@ -1645,6 +1622,38 @@ class ExecuteController extends Controller
     }
 
     //Mark Workx
+
+    public function getUnreadMessages($id)
+    {
+        $unreadMessages = DB::table('messages')
+            ->join('admins', 'messages.adminID', '=', 'admins.adminID')
+            ->where('admins.adminID', $id)
+            ->whereRaw('messages.sender_name != CONCAT(admins.firstname, " ", admins.lastname)')
+            ->where('messages.status', 0)
+            ->select('messages.*')
+            ->get();
+
+            $count = $unreadMessages->count();
+
+            return $count;
+    }
+
+    public function markAllMessagesAsRead(Request $request)
+    {
+        $adminID = $request->adminID;
+        $lrn = $request->lrn;
+
+        try {
+            DB::table('messages')
+                ->where('adminID', $adminID)
+                ->where('lrn', $lrn)
+                ->update(['status' => 1]);
+
+            return response()->json(['message' => 'All messages marked as read'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to update messages status'], 500);
+        }
+    }  
 
     public function showMessages($id)
     {
@@ -1657,20 +1666,29 @@ class ExecuteController extends Controller
                 'messages.messages',
                 'messages.created_at',
                 'learners.firstname',
-                'learners.lastname'
+                'learners.lastname',
+                DB::raw('(SELECT COUNT(*) 
+                        FROM messages AS sub_messages 
+                        WHERE sub_messages.lrn = messages.lrn 
+                            AND sub_messages.status = 0 
+                            AND sub_messages.sender_name != CONCAT(admins.firstname, " ", admins.lastname)) AS unread_count')
             )
             ->join('rosters', 'messages.lrn', '=', 'rosters.lrn')
             ->join('classes', 'rosters.classid', '=', 'classes.classid')
             ->join('learners', 'learners.lrn', '=', 'messages.lrn')
+            ->join('admins', 'classes.adminid', '=', 'admins.adminID') // Ensure admin data is available
             ->where('classes.adminid', $id)
-            ->whereRaw('messages.created_at = (SELECT MAX(sub_messages.created_at) FROM messages AS sub_messages WHERE sub_messages.lrn = messages.lrn)')
+            ->whereRaw('messages.created_at = (SELECT MAX(sub_messages.created_at) 
+                                            FROM messages AS sub_messages 
+                                            WHERE sub_messages.lrn = messages.lrn)')
             ->orderBy('messages.created_at', 'DESC') // Ensure latest messages appear first
             ->distinct()
             ->get();
 
-    
-        return response()->json($messages);
-    }   
+            return response()->json($messages);
+    }
+
+
 
     public function viewConvo($lrn)
     {
@@ -1710,26 +1728,27 @@ class ExecuteController extends Controller
             'lrn' => 'required|exists:learners,lrn',
             'messages' => 'required|string',
             'adminID' => 'required|exists:admins,adminid',
-            'mid' => 'required'
+            'mid' => 'required',
         ]);
 
         $admin = Admin::find($validatedData['adminID']);
-
-        // $reply = Message::where('messageid', $validatedData['mid'])
-        //             ->orderBy('created_at', 'desc')
-        //             ->first();
-        
-        // if($reply){
-        //     $reply->sender_name = $admin->firstname . ' '. $admin->lastname;
-        //     $reply->save();
-        // }
         
         $message = new Message();
         $message->lrn = $validatedData['lrn'];
         $message->adminID = $validatedData['adminID'];
         $message->messages = $validatedData['messages'];
         $message->sender_name = $admin->firstname . ' '. $admin->lastname;
+        $message->status = 0; // The new reply should remain unread
         $message->save();
+
+        $adminID = $request->adminID;
+        $lrn = $request->lrn;
+
+        DB::table('messages')
+                ->where('adminID', $adminID)
+                ->where('lrn', $lrn)
+                ->where('messageid', '!=', $message->id)
+                ->update(['status' => 1]);
 
         return response()->json(['message' => 'Reply sent successfully!'], 200);
     }
@@ -1749,7 +1768,18 @@ class ExecuteController extends Controller
         $message->adminID = $validatedData['adminID'];
         $message->messages = $validatedData['messages'];
         $message->sender_name = $admin->firstname . ' ' . $admin->lastname; // Store sender's name
+        $message->status = 0; // The new reply should remain unread
         $message->save();
+
+        $adminID = $request->adminID;
+        $lrn = $request->lrn;
+
+        DB::table('messages')
+                ->where('adminID', $adminID)
+                ->where('lrn', $lrn)
+                ->where('messageid', '!=', $message->messageid)
+                ->update(['status' => 1]);
+
 
         return response()->json(['message' => 'Message sent successfully!'], 200);
     }
@@ -1775,10 +1805,6 @@ class ExecuteController extends Controller
                 ['adminID' => $id],
                 ['profile_picture' => $fileName]
             );
-            // Admin::updateOrInsert(
-            //     ['adminID' => $id],
-            //     ['profile_picture' => $fileName]
-            // );
 
             return  response()->json(['message' => 'Profile picture updated successfully', 'image_name' => $fileName], 200);
         } else {
@@ -1807,5 +1833,778 @@ class ExecuteController extends Controller
         $admin->save();
 
         return response()->json(['message' => 'Password updated successfully'], 200);
+    }
+
+    //Student API
+    public function getSubjects($lrn)
+    {
+        $subjects = DB::table('rosters')
+            ->join('learners', 'rosters.lrn', '=', 'learners.lrn')
+            ->join('classes', 'rosters.classid', '=', 'classes.classid')
+            ->join('rooms', 'classes.roomid', '=', 'rooms.roomid')
+            ->join('admins', 'classes.adminid', '=', 'admins.adminID')
+            ->join('subjects', 'classes.subjectid', '=', 'subjects.subjectid')
+            ->where('rosters.lrn', $lrn)
+            ->select(
+                'classes.*',
+                'subjects.*',
+                'admins.*',
+                'rooms.school',
+                DB::raw("CONCAT(admins.firstname, ' ', admins.middlename, ' ', admins.lastname) AS admin_name")
+            )
+            ->distinct()
+            ->get();
+
+
+        return response()->json($subjects);
+    }
+
+    public function getSubjectsToday(Request $request)
+    {
+        $today = date('l');
+        $lrn = $request->input('lrn');
+
+        $subjects = DB::table('rosters')
+            ->join('learners', 'rosters.lrn', '=', 'learners.lrn')
+            ->join('classes', 'rosters.classid', '=', 'classes.classid')
+            ->join('admins', 'classes.adminid', '=', 'admins.adminID')
+            ->join('subjects', 'classes.subjectid', '=', 'subjects.subjectid')
+            ->where('rosters.lrn', $lrn)
+            ->where('classes.schedule', 'LIKE', '%' . $today . '%')
+            ->select(
+                'learners.*',       // Select all columns from the learners table
+                'rosters.*',        // Select all columns from the rosters table
+                'classes.*',        // Select all columns from the classes table
+                'subjects.*',       // Select all columns from the subjects table
+                DB::raw("CONCAT(admins.firstname, ' ', admins.middlename, ' ', admins.lastname) AS admin_name")
+            )
+            ->get();
+
+        return response()->json($subjects);
+    }
+
+    public function getModules(Request $request)
+    {
+        $classid = $request->input('classid');
+
+        $modules = DB::table('modules')
+            ->select('modules.*', DB::raw("DATE_FORMAT(modules.date, '%M %d, %Y') as formatted_date"))
+            ->where('modules.classid', $classid)
+            // ->orderBy('modules.date', 'desc')
+            ->get();
+
+
+        return response()->json($modules);
+    }
+
+    public function getLessonID2(Request $request)
+    {
+        $mid = $request->input('mid');
+
+        $lessons = DB::table('lessons')
+            ->select('lessons.*')
+            ->where('module_id', $mid)
+            ->get();
+
+
+        return response()->json($lessons);
+    }
+
+    public function getLessons(Request $request)
+    {
+        $module_id = $request->input('moduleID');
+
+        // Get all lessons for the specified module
+        $lessons = DB::table('lessons')
+        ->select('lessons.*', DB::raw('(SELECT COUNT(*) FROM assessments WHERE assessments.lesson_id = lessons.lesson_id) as total_assessments'))
+        ->where('lessons.module_id', $module_id)
+        ->get();
+
+        // For each lesson, fetch related media data
+        foreach ($lessons as $lesson) {
+            $lesson->media = DB::table('media')
+                ->where('lesson_id', $lesson->lesson_id)
+                ->get();
+        }
+
+        return response()->json($lessons);
+    }
+
+    public function getQuestions(Request $request)
+    {
+        $assessmentID = $request->input('assessmentID');
+        $lrn = $request->input('lrn');
+
+        $questions = DB::table('questions')
+            ->leftJoin('answers', function ($join) use ($lrn) {
+                $join->on('answers.question_id', '=', 'questions.question_id')
+                    ->where('answers.lrn', '=', $lrn);
+            })
+            ->select('questions.*', 'answers.answer as user_answer')
+            ->where('questions.assessment_id', $assessmentID)
+            ->get();
+
+        foreach ($questions as $q) {
+            if ($q->type == "multiple-choice") {
+                $q->options = DB::table('options')
+                    ->where('question_id', $q->question_id)
+                    ->get();
+            }
+        }
+
+        return response()->json($questions);
+    }
+
+    public function getAssessments(Request $request)
+    {
+        $lesson_id = $request->input('lessonID');
+        $lrn = $request->input('lrn'); // Assuming the LRN is passed from the request
+        $currentDate = now()->format('Y-m-d');
+
+        $assessments = DB::table('assessments')
+            ->select(
+                'assessments.*',
+                'assessment_answers.assessmentid as aid',  // Aliasing assessmentid to aid
+                'assessment_answers.lrn as slrn',         // Aliasing lrn to slrn  
+                'assessment_answers.score as scores',               // Fetching the score 
+                DB::raw("DATE_FORMAT(assessment_answers.date_submission, '%M %d, %Y') as formatted_date"),
+                DB::raw("DATE_FORMAT(assessments.due_date, '%M %d, %Y') as due_date"),
+                DB::raw("IF(assessments.available, 1, 0) as isOpen") // Keep it open on due date or later
+            )
+            ->leftJoin('assessment_answers', function ($join) use ($lrn) {
+                $join->on('assessments.assessmentid', '=', 'assessment_answers.assessmentid')
+                    ->where('assessment_answers.lrn', '=', $lrn);
+            })
+            ->where('assessments.lesson_id', $lesson_id)
+            ->get();
+
+
+        return response()->json($assessments);
+    }
+
+    public function saveAnswers(Request $request)
+    {
+        // Validate the incoming request
+        $validated = $request->validate([
+            'qid' => 'required',
+            'slrn' => 'required',
+            'answerValue' => 'required|string',
+        ]);
+
+        // Extract values
+        $lrn = $validated['slrn'];
+        $qid = $validated['qid'];
+        $answer = $validated['answerValue'];
+
+        // Upsert query
+        DB::table('answers')->updateOrInsert(
+            [
+                'question_id' => $qid, // Unique constraint
+                'lrn' => $lrn,
+            ],
+            [
+                'answer' => $answer, // Values to insert or update
+            ]
+        );
+
+
+        // Return a success response
+        return response()->json('Answer saved successfully');
+    }
+
+    public function getAssessmentProgress(Request $request)
+    {
+        $lrn = $request->input('lrn');
+
+        $progress = DB::table('assessment_answers')
+            ->select('assessment_answers.*')
+            ->where('assessment_answers.lrn', $lrn)
+            ->get();
+
+        return response()->json($progress);
+    }
+
+    public function getLearnerByToken(Request $request)
+    {
+        //Retrieve the currently authenticated student
+        $learner = $request->user();
+
+        if ($learner) {
+            //Return all the student's information
+            return response()->json($learner);
+        } else {
+            return response()->json(['message' => 'Student not found'], 404);
+        }
+    }
+
+    public function getLearner($lrn)
+    {
+        $learner = DB::table('learners')->where('lrn', $lrn)->first();
+
+        if (!$learner) {
+            return response()->json(['message' => 'Learner not found'], 404);
+        }
+
+        // return response()->json($learner, 200);
+        return [
+            'learner' => $learner,
+            'image' => $learner->image
+        ];
+    }
+
+    public function getAnswerFile(Request $request)
+    {
+        $aid = $request->input('aid');
+        $lrn = $request->input('lrn');
+        $fileInfo = DB::table('assessment_answers')
+            ->where('lrn', $lrn)
+            ->where('assessmentid', $aid)
+            ->first();
+
+        if (!$fileInfo) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+
+        // return response()->json($learner, 200);
+        return [
+            'assessment' => $fileInfo,
+            'file' => $fileInfo->file
+        ];
+    }
+
+    public function saveAssessmentsAnswer(Request $request)
+    {
+        // Validate the incoming request
+        $validated = $request->validate([
+            'assessmentID' => 'required',
+            'lrn' => 'required'
+
+        ]);
+        // Extract values
+        $lrn = $validated['lrn'];
+        $assessmentID = $validated['assessmentID'];
+
+        // Get the current date and time
+        $today = now()->format('Y-m-d H:i:s');
+
+        // Upsert query
+        DB::table('assessment_answers')->updateOrInsert(
+            [
+                'assessmentid' => $assessmentID, // Unique constraint
+                'lrn' => $lrn,
+            ],
+            [
+                'date_submission' => $today, // Add the current date and time
+            ]
+        );
+
+
+        // Return a success response
+        return response()->json('Answer saved successfully');
+    }
+
+    public function updateLearnerPassword(Request $request, $lrn)
+    {
+        // Validate the incoming request
+        $request->validate([
+            'oldpassword' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        // Find the learner by LRN
+        $learner = Learner::where('lrn', $lrn)->first();
+
+        // Check if the learner exists
+        if (!$learner) {
+            return response()->json(['message' => 'Learner not found'], 404);
+        }
+
+        // Check if the old password matches the stored password
+        if (!Hash::check($request->oldpassword, $learner->password)) {
+            return response()->json(['message' => 'Old password does not match'], 400);
+        }
+
+        // Update to the new password
+        $learner->password = Hash::make($request->password);
+        $learner->save();
+
+        return response()->json(['message' => 'Password updated successfully'], 200);
+    }
+
+    public function getPendingAssessments(Request $request)
+    {
+        $lrn = $request->input('lrn');
+        $currentDate = now()->format('Y-m-d');
+
+        $pendingAssessments = DB::table('assessments')
+            ->leftJoin('assessment_answers', function ($join) use ($lrn) {
+                $join->on('assessment_answers.assessmentid', '=', 'assessments.assessmentid')
+                    ->where('assessment_answers.lrn', '=', $lrn);
+            })
+            ->leftJoin('lessons', 'assessments.lesson_id', '=', 'lessons.lesson_id')
+            ->leftJoin('modules', 'lessons.module_id', '=', 'modules.modules_id')
+            ->leftJoin('rosters', 'modules.classid', '=', 'rosters.classid')
+            ->whereNull('assessment_answers.lrn')
+            ->where('rosters.lrn', '=', $lrn)
+            ->select(
+                'assessments.*',
+                'assessment_answers.lrn as slrn', 
+                DB::raw("IF(assessments.due_date >= '$currentDate', 1, 0) as isDateDue"),
+                DB::raw("IF(assessments.available, 1, 0) as isOpen")
+            )
+            ->get();
+
+        return response()->json($pendingAssessments);
+    }
+
+    public function getDiscussions(Request $request)
+    {
+        $lessonID = $request->input('lessonid');
+
+        $discussionlist = DB::table('discussions')
+            ->select(
+                'discussions.*',
+                DB::raw("DATE_FORMAT(discussions.created_at, '%M %d, %Y') as date_created")
+            ) //fetching date submission
+            ->where('discussions.lesson_id', $lessonID)
+            ->get();
+
+        return response()->json($discussionlist);
+    }
+
+    public function uploadProfilePicture2(Request $request)
+    {
+        $request->validate([
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'lrn' => 'required'
+        ]);
+
+        // Retrieve the learner using LRN
+        $lrn = $request->input('lrn');
+
+        // Check if a file was uploaded
+        if ($request->hasFile('profile_picture')) {
+            // Store the new image in the 'public/profile_pictures' directory
+            $filePath = $request->file('profile_picture')->store('profile_pictures', 'public');
+
+            // Get the file name to save in the database
+            $fileName = basename($filePath); // Get just the file name
+
+            // Save the image in the assets folder
+            $destinationPath = public_path('assets/profile_pictures');
+            $request->file('profile_picture')->move($destinationPath, $fileName);
+
+            // Use query builder to check and update or insert profile picture for the student
+            DB::table('learners')->updateOrInsert(
+                ['lrn' => $lrn], // Condition to match LRN
+                ['image' => $fileName] // Save just the image name in the database
+            );
+
+            return response()->json(['message' => 'Profile picture updated successfully', 'image_name' => $fileName], 200);
+        } else {
+            return response()->json(['error' => 'No file uploaded'], 400);
+        }
+    }
+
+    public function uploadFile(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:pdf,docx,png,jpeg|max:2048', // Accept specific file types
+            'lrn' => 'required',
+            'assessmentid' => 'required' // Validation for assessment ID
+        ]);
+
+        // Retrieve the learner and assessment details
+        $lrn = $request->input('lrn');
+        $assessmentId = $request->input('assessmentid');
+        $dateSubmission = now();
+
+        // Check if a file was uploaded
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $originalFileName = $file->getClientOriginalName(); // Get original file name
+            $destinationPath = public_path('assets/files'); // Directory to store the file
+
+            // Move the file to the destination path with its original name
+            $file->move($destinationPath, $originalFileName);
+
+            // Check if a record already exists
+            $existingRecord = DB::table('assessment_answers')
+                ->where('lrn', $lrn)
+                ->where('assessmentid', $assessmentId)
+                ->first();
+
+            if ($existingRecord) {
+                // Update the existing record
+                DB::table('assessment_answers')
+                    ->where('answerid', $existingRecord->answerid)
+                    ->update(['file' => $originalFileName, 'date_submission' => $dateSubmission]);
+            } else {
+                // Insert a new record
+                DB::table('assessment_answers')->insert([
+                    'lrn' => $lrn,
+                    'file' => $originalFileName,
+                    'assessmentid' => $assessmentId,
+                    'date_submission' => $dateSubmission
+                ]);
+            }
+
+            return response()->json(['message' => 'File uploaded successfully', 'file' => $originalFileName], 200);
+        } else {
+            return response()->json(['error' => 'No file uploaded'], 400);
+        }
+    }
+
+    public function checkProgress(Request $request)
+    {
+        $classID = $request->input('cid'); //Classes ID
+        $lrn = $request->input('lrn'); //Learner's LRN
+        $currentDate = now()->format('Y-m-d');
+
+        $subjectprogress = DB::table('classes')
+            ->join('modules', 'classes.classid', '=', 'modules.classid')
+            ->join('lessons', 'modules.modules_id', '=', 'lessons.module_id')
+            ->join('assessments', 'lessons.lesson_id', '=', 'assessments.lesson_id')
+            ->leftJoin('assessment_answers', function ($join) use ($lrn) {
+                $join->on('assessment_answers.assessmentid', '=', 'assessments.assessmentid')
+                    ->where('assessment_answers.lrn', '=', $lrn);
+            })
+            // ->whereNull('assessment_answers.lrn')
+            ->where('classes.classid', $classID) // Added condition for classID
+            ->select(
+                'assessments.*',
+                'assessment_answers.lrn as slrn',
+                DB::raw("IF(assessments.due_date >= '$currentDate', 1, 0) as isDateDue"), // Keep it open on due date or later
+                DB::raw("IF(assessments.available, 1, 0) as isOpen")
+            )
+            ->get();
+
+        return response()->json($subjectprogress); // Return the subject progress
+    }
+
+    public function getScore(Request $request)
+    {
+        $aid = $request->input('aid');
+        $lrn = $request->input('lrn');
+        // Query to get the score
+        $score = DB::table('assessment_answers') // Replace 'your_table_name' with the actual table name
+            ->where('lrn', $lrn)
+            ->orderBy('updated_at', 'desc')
+            ->get();
+        return response()->json($score);
+    }
+
+    public function getFile(Request $request)
+    {
+        $aid = $request->input('aid');
+        $lrn = $request->input('lrn');
+        $score = DB::table('assessment_answers') // Replace 'your_table_name' with the actual table name
+            ->where('lrn', $lrn)
+            ->where('assessmentid', $aid)
+            ->get();
+        return response()->json($score);
+
+    }
+
+    public function getAnnouncements(Request $request)
+    {
+        $classid= $request->input('cid');
+
+        $announcements = DB::table('announcements')
+        ->select('announcements.*', DB::raw("DATE_FORMAT(announcements.created_at, '%M %d, %Y') as formatted_date"))
+        ->where('announcements.classid', $classid)
+        ->get();
+    
+
+        return response()->json($announcements);
+    }
+
+    public function getResultAnalysis(Request $request)
+    {
+        $aid = $request->query('aid');
+        $lrn = $request->query('lrn');
+
+        // Use DB::table() for query builder
+        $result = DB::table('answers')
+        ->join('questions', 'answers.question_id', '=', 'questions.question_id')
+        ->join('assessments', 'questions.assessment_id', '=', 'assessments.assessmentid')
+        ->where('questions.assessment_id', $aid)
+        ->where('answers.lrn', $lrn)
+        ->select(
+            'questions.question as question', 
+            'questions.type as question_type', 
+            'questions.key_answer as key_answer',
+            'answers.answer as answer',
+            'answers.score as score',
+        )
+        ->get();    
+
+
+            // Remove <p> tags from essay answers
+        $result = $result->map(function ($item) {
+            if ($item->question_type === 'Essay') {
+                $item->answer = strip_tags($item->answer);
+            }
+            return $item;
+        });
+
+
+        return response()->json($result);
+    }
+
+    public function getmoduleID(Request $request) {
+        $aid = $request->query('aid');
+
+        $result = DB::table('classes')
+        ->join('admins', 'classes.adminid', '=', 'admins.adminID')
+        ->join('subjects', 'classes.subjectid', '=', 'subjects.subjectid')
+        ->join('modules', 'classes.classid', '=', 'modules.classid' )
+        ->join('lessons', 'modules.modules_id', '=', 'lessons.module_id')
+        ->join('assessments', 'lessons.lesson_id', '=', 'assessments.lesson_id')
+        ->select('modules.modules_id as mid', 'modules.description as modesc', 'modules.title as title', DB::raw("CONCAT(admins.firstname, ' ', admins.middlename, ' ', admins.lastname) AS admin_name"), 'subjects.subject_name as subname', 'classes.classid',)
+        ->where('assessments.assessmentid', $aid)
+        ->get();
+
+        return response()->json($result);
+    }
+
+    public function showMessages2($id)
+    {
+        $messages = DB::table('messages')
+                ->join('learners', 'learners.lrn', '=', 'messages.lrn')
+                ->join('admins', 'messages.adminID', '=', 'admins.adminID')
+                ->where('messages.lrn', $id)
+                ->select('messages.*', 'admins.firstname', 'admins.lastname', 'admins.adminID')
+                ->orderBy('messages.updated_at', 'asc')
+                ->get();
+        
+        return response()->json($messages);
+    }
+
+    public function getAdmin($id) 
+    {
+        $admin = DB::table('admins')
+        ->distinct()
+        ->join('classes', 'classes.adminid', '=', 'admins.adminID')
+        ->join('rosters', 'rosters.classid', '=', 'classes.classid')
+        ->where('rosters.lrn', $id)
+        ->select('admins.*')
+        ->get();    
+
+        return response()->json($admin);
+    }
+
+    public function sendReply2(Request $request)
+    {
+        $validatedData = $request->validate([
+            'lrn' => 'required|exists:learners,lrn',
+            'messages' => 'required|string',
+            'adminID' => 'required|exists:admins,adminID',
+            // 'mid' => 'required'
+        ]);
+
+        //Fetch learner details
+        $learner = Learner::where('lrn', $validatedData['lrn'])->first();
+
+        //Update or create the message
+        // $message = Message::where('messageid', $validatedData['mid'])
+            // ->orderBy('created_at', 'desc')
+            // ->first();
+        
+        // if ($message) {
+            $message = new Message();
+            $message->messages = $validatedData['messages'];
+            $message->lrn = $validatedData['lrn'];
+            $message->adminID = $validatedData['adminID'];
+            $message->sender_name = $learner->firstname . ' ' . $learner->lastname; //Add sender name
+            $message->updated_at = now();
+            $message->save();
+        // }
+
+        return response()->json(['message' => 'Reply sent successfully!'], 200);
+
+    }
+
+    public function sendMessage2(Request $request)
+    {
+        $validatedData = $request->validate([
+            'adminID' => 'required|exists:admins,adminID',
+            'messages' => 'required|string',
+            'lrn' => 'required|exists:learners,lrn',
+        ]);
+
+        //Fetch learner details
+        $learner = Learner::find($validatedData['lrn']);
+
+        $message = new Message();
+        $message->lrn = $validatedData['lrn'];
+        $message->adminID = $validatedData['adminID'];
+        $message->messages = $validatedData['messages'];
+        $message->sender_name = $learner->firstname . ' ' . $learner->lastname;
+        $message->status = 0;
+        $message->save();
+
+        $adminID = $request->adminID;
+        $lrn = $request->lrn;
+
+        DB::table('messages')
+            ->where('adminID', $adminID)
+            ->where('lrn', $lrn)
+            ->where('messageid', '!=', $message->messageid)
+            ->update(['status' => 1]);
+
+        return response()->json(['message' => 'Message sent successfully!'], 200);
+    }
+
+    public function getUnreadMessages2($lrn)
+    {
+
+        // Fetch unread messages based on the sender_name and join with learners
+        $unreadMessages = DB::table('messages')
+        ->join('learners', 'messages.lrn', '=', 'learners.lrn')
+        ->where('learners.lrn', $lrn)
+        ->whereRaw('messages.sender_name != CONCAT(learners.firstname, " ", learners.lastname)')
+        ->where('messages.status', 0)
+        ->select('messages.*')
+        ->get();
+        $count = $unreadMessages->count(); // Get total unread messages
+
+        return $count;
+    }
+
+    public function clearUnreadMessages(Request $request)
+    {
+        $lrn = $request->input('lrn'); // Pass LRN dynamically (e.g., logged-in user)
+
+        // Clear logic can vary depending on your implementation
+        // Here, just an acknowledgment response
+        return response()->json(['message' => 'Messages cleared']);
+    }
+
+    public function getAdminDetails($lrn)
+    {
+        $admin = DB::table('admins')
+            ->join('classes', 'admins.adminID', '=', 'classes.adminid')
+            ->join('rosters', 'classes.classid', '=', 'rosters.classid')
+            ->where('rosters.lrn', $lrn)
+            ->distinct()
+            ->select('admins.adminID')
+            ->first();
+    
+        // Check if an admin was found and return the adminID as a string
+        if ($admin) {
+            return (string) $admin->adminID; // Cast to string
+        }
+    
+        return null; // Return null or handle the case where no admin is found
+    }
+
+    public function createAssessment2(Request $request)
+    {
+        //
+        $validatedData = $request->validate([
+            'Lesson_ID' => 'required|integer',
+            'Title' => 'required|string|max:255',
+            'Instruction' => 'required|string|max:255',
+            'Description' => 'required|string|max:255',
+            'Due_date' => 'date',
+        ]);
+
+        $assess = Assessment::create($validatedData);
+        return response()->json($assess, 201);
+    }
+
+    public function showAssessment2()
+    {
+        //
+        $assess = DB::table('assessments')
+            ->select(
+                'assessments.assessmentID',
+                'assessments.Title',
+                'assessments.Instruction',
+                'assessments.Description',
+                DB::raw('DATE_FORMAT(assessments.Due_date, "%M %d, %Y") as formatted_due_date')
+            )
+            ->get();
+
+        return $assess;
+    }
+
+    public function requestChangePassword(Request $request)
+    {
+        // Validate the incoming email
+        $request->validate([
+            'email' => 'required|email'
+        ]);
+
+        // Find the learner by email
+        $learner = Learner::where('email', $request->email)->first();
+
+        if ($learner) {
+            // Update the password_change_request column to 2
+            $learner->password_change_request = 1;
+            $learner->save();
+
+            return response()->json([
+                'message' => 'Password change request submitted successfully.'
+            ], 200);
+        }
+
+        return response()->json([
+            'message' => 'Learner not found.'
+        ], 404);
+    }
+
+    public function getPasswordChangeRequestStatus(Request $request)
+    {
+        // Validate the email input
+        $request->validate([
+            'email' => 'required|email'
+        ]);
+
+        // Find the learner by email
+        $learner = Learner::where('email', $request->email)->first();
+
+        if ($learner) {
+            // Return the password_change_request value
+            return response()->json([
+                'password_change_request' => $learner->password_change_request,
+            ], 200);
+        }
+
+        return response()->json([
+            'message' => 'Learner not found.'
+        ], 404);
+    }
+
+    public function changePassword(Request $request, $email) 
+    {
+                // Validate the incoming request
+                $request->validate([
+                    'password' => 'required|string|min:8|confirmed',
+                ], [
+                    'password.confirmed' => 'The password field confirmation does not match.'
+                ]);
+
+                
+        
+                // Find the learner by email
+                $learner = Learner::where('email', $email)->first();
+        
+                // Check if the learner exists
+                if (!$learner) {
+                    return response()->json(['message' => 'Learner not found'], 404);
+                }
+        
+                // Check if the old password matches the stored password
+                // if (!Hash::check($request->oldpassword, $learner->password)) {
+                //     return response()->json(['message' => 'Old password does not match'], 400);
+                // }
+        
+                // Update to the new password
+                $learner->password = Hash::make($request->password);
+                $learner->save();
+        
+                return response()->json(['message' => 'Password updated successfully'], 200);
     }
 }

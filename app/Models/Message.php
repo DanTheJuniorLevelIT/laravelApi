@@ -13,6 +13,7 @@ class Message extends Model
         'adminID',
         'sender_name',
         'lrn',
-        'messages'
+        'messages',
+        'status'
     ];
 }

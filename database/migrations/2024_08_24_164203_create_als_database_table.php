@@ -67,6 +67,7 @@ return new class extends Migration
             $table->unsignedBigInteger('lrn')->nullable();
             $table->string('sender_name')->nullable();
             $table->text('messages');
+            $table->boolean('status')->default(0)->change();
             $table->timestamps();
         });
 
